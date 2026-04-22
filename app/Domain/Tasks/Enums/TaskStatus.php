@@ -4,6 +4,7 @@ namespace App\Domain\Tasks\Enums;
 
 enum TaskStatus: string
 {
+    case Draft = 'draft';
     case Pending = 'pending';
     case Queued = 'queued';
     case InProgress = 'in_progress';
@@ -15,7 +16,7 @@ enum TaskStatus: string
     {
         return match ($this) {
             self::Completed, self::Failed, self::Cancelled => true,
-            self::Pending, self::Queued, self::InProgress => false,
+            self::Draft, self::Pending, self::Queued, self::InProgress => false,
         };
     }
 }

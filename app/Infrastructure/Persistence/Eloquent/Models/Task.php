@@ -25,12 +25,17 @@ class Task extends Model
     protected $fillable = [
         'agent_id',
         'title',
+        'summary',
+        'description',
         'status',
         'priority',
+        'source',
+        'requested_agent_role',
         'payload',
         'context',
         'submitted_at',
         'scheduled_at',
+        'due_at',
         'completed_at',
     ];
 
@@ -43,6 +48,7 @@ class Task extends Model
             'context' => 'array',
             'submitted_at' => 'immutable_datetime',
             'scheduled_at' => 'immutable_datetime',
+            'due_at' => 'immutable_datetime',
             'completed_at' => 'immutable_datetime',
             'created_at' => 'immutable_datetime',
             'updated_at' => 'immutable_datetime',

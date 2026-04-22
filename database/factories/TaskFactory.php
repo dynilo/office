@@ -20,8 +20,12 @@ class TaskFactory extends Factory
         return [
             'agent_id' => Agent::factory(),
             'title' => fake()->sentence(4),
+            'summary' => fake()->sentence(),
+            'description' => fake()->paragraph(),
             'status' => fake()->randomElement(TaskStatus::cases()),
             'priority' => fake()->randomElement(TaskPriority::cases()),
+            'source' => fake()->randomElement(['api', 'email', 'portal']),
+            'requested_agent_role' => fake()->randomElement(['support', 'research', 'operations']),
             'payload' => [
                 'request' => fake()->paragraph(),
                 'channel' => fake()->randomElement(['email', 'chat', 'api']),
@@ -31,6 +35,7 @@ class TaskFactory extends Factory
             ],
             'submitted_at' => now()->subMinutes(fake()->numberBetween(1, 120)),
             'scheduled_at' => now()->addMinutes(fake()->numberBetween(1, 60)),
+            'due_at' => now()->addDay(),
             'completed_at' => null,
         ];
     }

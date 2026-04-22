@@ -37,10 +37,15 @@ it('creates the expected runtime tables and columns', function (): void {
         ->and(Schema::hasColumns('tasks', [
             'id',
             'agent_id',
+            'summary',
+            'description',
             'status',
             'priority',
+            'source',
+            'requested_agent_role',
             'payload',
             'context',
+            'due_at',
         ]))->toBeTrue()
         ->and(Schema::hasColumns('executions', [
             'id',
@@ -88,6 +93,8 @@ it('factories produce valid persisted records', function (): void {
         ->and($profile->model_preference)->not->toBeNull()
         ->and($task->status)->toBe(TaskStatus::Queued)
         ->and($task->priority)->toBe(TaskPriority::High)
+        ->and($task->summary)->not->toBeNull()
+        ->and($task->requested_agent_role)->not->toBeNull()
         ->and($dependency->task_id)->toBe($task->id)
         ->and($execution->status)->toBe(ExecutionStatus::Running)
         ->and($log->execution_id)->toBe($execution->id)
