@@ -1,15 +1,28 @@
-# Office
+# AI Office OS
 
-This repository will be built incrementally with Codex, one controlled slice at a time.
+Minimal Laravel 13 bootstrap for an API-first AI Office OS.
 
-## Current state
-Starter guidance files have been added.
-The application code should be created by Codex beginning with Slice 01.
+## Stack
 
-## Workflow
-1. Read `AGENTS.md`
-2. Read the required docs for the current slice
-3. Execute one slice only
-4. Run tests
-5. Verify acceptance criteria
-6. Move to the next slice only after completion
+- PHP 8.4+
+- Laravel 13
+- PostgreSQL
+- Redis
+- Pest
+
+## Slice 01 scope
+
+- API bootstrap only
+- PostgreSQL and Redis configured through environment variables
+- Health endpoint at `GET /api/health`
+- No business modules, agent runtime, or domain tables yet
+
+## Local usage
+
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan about
+php artisan test
+```
