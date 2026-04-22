@@ -20,6 +20,7 @@ class ExecutionFactory extends Factory
         return [
             'task_id' => Task::factory(),
             'agent_id' => Agent::factory(),
+            'idempotency_key' => fake()->unique()->uuid(),
             'status' => fake()->randomElement(ExecutionStatus::cases()),
             'attempt' => fake()->numberBetween(1, 3),
             'input_snapshot' => [

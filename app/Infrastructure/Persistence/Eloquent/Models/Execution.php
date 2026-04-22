@@ -23,6 +23,7 @@ class Execution extends Model
     protected $fillable = [
         'task_id',
         'agent_id',
+        'idempotency_key',
         'status',
         'attempt',
         'input_snapshot',

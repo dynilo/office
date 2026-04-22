@@ -53,6 +53,7 @@ it('creates the expected runtime tables and columns', function (): void {
             'id',
             'task_id',
             'agent_id',
+            'idempotency_key',
             'status',
             'attempt',
             'input_snapshot',
@@ -116,6 +117,7 @@ it('factories produce valid persisted records', function (): void {
         ->and($dependency->task_id)->toBe($task->id)
         ->and($assignmentDecision->task_id)->toBe($task->id)
         ->and($execution->status)->toBe(ExecutionStatus::Running)
+        ->and($execution->idempotency_key)->not->toBeNull()
         ->and($log->execution_id)->toBe($execution->id)
         ->and($knowledgeItem->document_id)->toBe($document->id);
 });
