@@ -25,8 +25,10 @@ it('loads the runtime schema through migrations', function (): void {
 it('creates the expected runtime tables and columns', function (): void {
     expect(Schema::hasColumns('agents', [
         'id',
+        'code',
         'key',
         'name',
+        'role',
         'version',
         'status',
         'capabilities',
@@ -48,6 +50,11 @@ it('creates the expected runtime tables and columns', function (): void {
             'attempt',
             'input_snapshot',
             'output_payload',
+        ]))->toBeTrue()
+        ->and(Schema::hasColumns('agent_profiles', [
+            'agent_id',
+            'model_preference',
+            'temperature_policy',
         ]))->toBeTrue()
         ->and(Schema::hasColumns('documents', [
             'id',
@@ -76,7 +83,9 @@ it('factories produce valid persisted records', function (): void {
     $knowledgeItem = KnowledgeItem::factory()->for($document)->create();
 
     expect($agent->id)->toHaveLength(26)
+        ->and($agent->code)->not->toBeNull()
         ->and($profile->agent_id)->toBe($agent->id)
+        ->and($profile->model_preference)->not->toBeNull()
         ->and($task->status)->toBe(TaskStatus::Queued)
         ->and($task->priority)->toBe(TaskPriority::High)
         ->and($dependency->task_id)->toBe($task->id)

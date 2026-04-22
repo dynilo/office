@@ -21,6 +21,8 @@ class AgentProfile extends Model
     protected $fillable = [
         'agent_id',
         'system_prompt',
+        'model_preference',
+        'temperature_policy',
         'instructions',
         'defaults',
         'metadata',
@@ -29,6 +31,7 @@ class AgentProfile extends Model
     protected function casts(): array
     {
         return [
+            'temperature_policy' => 'array',
             'instructions' => 'array',
             'defaults' => 'array',
             'metadata' => 'array',

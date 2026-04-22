@@ -18,6 +18,13 @@ class AgentProfileFactory extends Factory
         return [
             'agent_id' => Agent::factory(),
             'system_prompt' => fake()->paragraph(),
+            'model_preference' => fake()->randomElement(['gpt-5.4', 'gpt-5.4-mini']),
+            'temperature_policy' => [
+                'mode' => 'bounded',
+                'value' => 0.2,
+                'min' => 0.0,
+                'max' => 0.4,
+            ],
             'instructions' => [
                 fake()->sentence(),
                 fake()->sentence(),

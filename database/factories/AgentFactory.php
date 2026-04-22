@@ -15,11 +15,13 @@ class AgentFactory extends Factory
 
     public function definition(): array
     {
-        $key = fake()->unique()->slug(2);
+        $code = fake()->unique()->slug(2);
 
         return [
-            'key' => $key,
+            'code' => $code,
+            'key' => $code,
             'name' => fake()->unique()->company(),
+            'role' => fake()->randomElement(['research', 'operations', 'support']),
             'version' => fake()->numerify('1.#.#'),
             'status' => fake()->randomElement(AgentStatus::cases()),
             'description' => fake()->sentence(),

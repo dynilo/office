@@ -21,8 +21,10 @@ class Agent extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
+        'code',
         'key',
         'name',
+        'role',
         'version',
         'status',
         'description',
@@ -59,5 +61,14 @@ class Agent extends Model
     protected static function newFactory(): AgentFactory
     {
         return AgentFactory::new();
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (self $agent): void {
+            if ($agent->code !== null && $agent->key === null) {
+                $agent->key = $agent->code;
+            }
+        });
     }
 }
