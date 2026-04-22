@@ -11,6 +11,7 @@ use App\Infrastructure\Persistence\Eloquent\Models\Execution;
 use App\Infrastructure\Persistence\Eloquent\Models\ExecutionLog;
 use App\Infrastructure\Persistence\Eloquent\Models\KnowledgeItem;
 use App\Infrastructure\Persistence\Eloquent\Models\Task;
+use App\Infrastructure\Persistence\Eloquent\Models\TaskAssignmentDecision;
 use App\Infrastructure\Persistence\Eloquent\Models\TaskDependency;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
@@ -19,7 +20,8 @@ uses(RefreshDatabase::class);
 
 it('loads the runtime schema through migrations', function (): void {
     expect(Schema::hasTable('agents'))->toBeTrue()
-        ->and(Schema::hasTable('knowledge_items'))->toBeTrue();
+        ->and(Schema::hasTable('knowledge_items'))->toBeTrue()
+        ->and(Schema::hasTable('task_assignment_decisions'))->toBeTrue();
 });
 
 it('creates the expected runtime tables and columns', function (): void {
@@ -56,6 +58,14 @@ it('creates the expected runtime tables and columns', function (): void {
             'input_snapshot',
             'output_payload',
         ]))->toBeTrue()
+        ->and(Schema::hasColumns('task_assignment_decisions', [
+            'task_id',
+            'agent_id',
+            'outcome',
+            'reason_code',
+            'matched_by',
+            'context',
+        ]))->toBeTrue()
         ->and(Schema::hasColumns('agent_profiles', [
             'agent_id',
             'model_preference',
@@ -80,6 +90,14 @@ it('factories produce valid persisted records', function (): void {
         'task_id' => $task->id,
         'depends_on_task_id' => Task::factory()->create()->id,
     ]);
+    $assignmentDecision = TaskAssignmentDecision::query()->create([
+        'task_id' => $task->id,
+        'agent_id' => $agent->id,
+        'outcome' => 'assigned',
+        'reason_code' => null,
+        'matched_by' => 'role',
+        'context' => ['considered_agent_ids' => [$agent->id]],
+    ]);
     $execution = Execution::factory()->for($agent)->for($task)->create([
         'status' => ExecutionStatus::Running,
     ]);
@@ -96,6 +114,7 @@ it('factories produce valid persisted records', function (): void {
         ->and($task->summary)->not->toBeNull()
         ->and($task->requested_agent_role)->not->toBeNull()
         ->and($dependency->task_id)->toBe($task->id)
+        ->and($assignmentDecision->task_id)->toBe($task->id)
         ->and($execution->status)->toBe(ExecutionStatus::Running)
         ->and($log->execution_id)->toBe($execution->id)
         ->and($knowledgeItem->document_id)->toBe($document->id);
@@ -110,6 +129,14 @@ it('exposes coherent model relations', function (): void {
         'task_id' => $task->id,
         'depends_on_task_id' => $dependencyTask->id,
     ]);
+    TaskAssignmentDecision::query()->create([
+        'task_id' => $task->id,
+        'agent_id' => $agent->id,
+        'outcome' => 'assigned',
+        'reason_code' => null,
+        'matched_by' => 'role',
+        'context' => ['considered_agent_ids' => [$agent->id]],
+    ]);
     $execution = Execution::factory()->for($agent)->for($task)->create();
     ExecutionLog::factory()->count(2)->for($execution)->sequence(
         ['sequence' => 1],
@@ -121,8 +148,10 @@ it('exposes coherent model relations', function (): void {
     expect($agent->profile)->not->toBeNull()
         ->and($agent->profile->is($profile))->toBeTrue()
         ->and($agent->tasks)->toHaveCount(1)
+        ->and($agent->assignmentDecisions)->toHaveCount(1)
         ->and($task->dependencies)->toHaveCount(1)
         ->and($task->dependencies->first()?->is($dependencyTask))->toBeTrue()
+        ->and($task->assignmentDecisions)->toHaveCount(1)
         ->and($task->executions)->toHaveCount(1)
         ->and($execution->logs)->toHaveCount(2)
         ->and($document->knowledgeItems)->toHaveCount(2);

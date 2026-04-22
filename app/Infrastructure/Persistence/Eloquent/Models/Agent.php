@@ -53,6 +53,11 @@ class Agent extends Model
         return $this->hasMany(Task::class);
     }
 
+    public function assignmentDecisions(): HasMany
+    {
+        return $this->hasMany(TaskAssignmentDecision::class);
+    }
+
     public function executions(): HasMany
     {
         return $this->hasMany(Execution::class);

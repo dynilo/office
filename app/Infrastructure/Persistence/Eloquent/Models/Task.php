@@ -60,6 +60,11 @@ class Task extends Model
         return $this->belongsTo(Agent::class);
     }
 
+    public function assignmentDecisions(): HasMany
+    {
+        return $this->hasMany(TaskAssignmentDecision::class);
+    }
+
     public function executions(): HasMany
     {
         return $this->hasMany(Execution::class);
