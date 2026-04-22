@@ -1,0 +1,37 @@
+<?php
+
+namespace Database\Factories;
+
+use App\Domain\Agents\Enums\AgentStatus;
+use App\Infrastructure\Persistence\Eloquent\Models\Agent;
+use Illuminate\Database\Eloquent\Factories\Factory;
+
+/**
+ * @extends Factory<Agent>
+ */
+class AgentFactory extends Factory
+{
+    protected $model = Agent::class;
+
+    public function definition(): array
+    {
+        $key = fake()->unique()->slug(2);
+
+        return [
+            'key' => $key,
+            'name' => fake()->unique()->company(),
+            'version' => fake()->numerify('1.#.#'),
+            'status' => fake()->randomElement(AgentStatus::cases()),
+            'description' => fake()->sentence(),
+            'capabilities' => fake()->randomElements([
+                'ingestion',
+                'routing',
+                'analysis',
+                'reporting',
+            ], fake()->numberBetween(1, 3)),
+            'metadata' => [
+                'owner' => fake()->company(),
+            ],
+        ];
+    }
+}
