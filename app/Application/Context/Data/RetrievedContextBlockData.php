@@ -10,6 +10,6 @@ final readonly class RetrievedContextBlockData
         public KnowledgeItem $knowledgeItem,
         public float $distance,
         public string $formattedBlock,
-    ) {
-    }
+        public float $relevanceScore,
+    ) {}
 }
