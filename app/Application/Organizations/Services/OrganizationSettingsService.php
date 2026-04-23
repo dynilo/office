@@ -3,6 +3,7 @@
 namespace App\Application\Organizations\Services;
 
 use App\Application\Organizations\Data\OrganizationSettingsData;
+use App\Application\Policies\Enums\PolicyRule;
 use App\Models\Organization;
 use App\Models\OrganizationSetting;
 use App\Models\Role;
@@ -89,6 +90,8 @@ final class OrganizationSettingsService
         return [
             'approvals_required' => false,
             'tenant_enforcement' => true,
+            PolicyRule::AssignmentRequiredAgentCapabilities->value => [],
+            PolicyRule::ExecutionRequiredAgentCapabilities->value => [],
             'allowed_admin_roles' => [
                 Role::SUPER_ADMIN,
                 Role::ADMIN,

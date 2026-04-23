@@ -6,10 +6,12 @@ use App\Application\Audit\Data\AuditActorData;
 use App\Application\Audit\Data\AuditEventData;
 use App\Application\Audit\Data\AuditSubjectData;
 use App\Application\Audit\Services\AuditEventWriter;
+use App\Application\Policies\Services\PolicyEngineService;
 use App\Application\Tasks\Data\TaskAssignmentDecisionData;
 use App\Domain\Agents\Contracts\AgentRepository;
 use App\Domain\Tasks\Contracts\TaskRepository;
 use App\Domain\Tasks\Enums\TaskStatus;
+use App\Infrastructure\Persistence\Eloquent\Models\Agent;
 use App\Infrastructure\Persistence\Eloquent\Models\TaskAssignmentDecision;
 use App\Support\Exceptions\EntityNotFoundException;
 
@@ -19,8 +21,8 @@ final class AssignTaskService
         private readonly TaskRepository $tasks,
         private readonly AgentRepository $agents,
         private readonly AuditEventWriter $audit,
-    ) {
-    }
+        private readonly PolicyEngineService $policies,
+    ) {}
 
     public function assign(string $taskId): TaskAssignmentDecisionData
     {
@@ -89,8 +91,17 @@ final class AssignTaskService
             }
         }
 
-        /** @var \App\Infrastructure\Persistence\Eloquent\Models\Agent $assignedAgent */
+        /** @var Agent $assignedAgent */
         $assignedAgent = $capabilityCandidates->first();
+        $policyDecision = $this->policies->authorizeAssignment($task, $assignedAgent);
+
+        if (! $policyDecision->allowed) {
+            return $this->persist(TaskAssignmentDecisionData::unassigned(
+                taskId: $task->id,
+                reasonCode: $policyDecision->reasonCode(),
+                consideredAgentIds: $capabilityCandidates->pluck('id')->all(),
+            ));
+        }
 
         $task->agent()->associate($assignedAgent);
         $this->tasks->save($task);

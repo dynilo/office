@@ -8,6 +8,7 @@ use App\Application\Audit\Data\AuditSubjectData;
 use App\Application\Audit\Services\AuditEventWriter;
 use App\Application\Costs\Services\ProviderUsageCostTracker;
 use App\Application\Executions\Guards\ExecutionTransitionGuard;
+use App\Application\Policies\Services\PolicyEngineService;
 use App\Application\Runtime\Events\ExecutionCreated;
 use App\Application\Runtime\Events\ExecutionStatusChanged;
 use App\Domain\Executions\Contracts\ExecutionRepository;
@@ -25,6 +26,7 @@ final class ExecutionLifecycleService
         private readonly ExecutionLogWriter $logs,
         private readonly AuditEventWriter $audit,
         private readonly ProviderUsageCostTracker $costs,
+        private readonly PolicyEngineService $policies,
     ) {}
 
     public function createPendingForAssignedTask(string $taskId, string $idempotencyKey): Execution
@@ -44,6 +46,18 @@ final class ExecutionLifecycleService
 
         if ($task->agent_id === null) {
             throw new InvalidStateException('Task must be assigned before execution can be created.');
+        }
+
+        $agent = $task->agent()->first();
+
+        if ($agent === null) {
+            throw new InvalidStateException('Assigned task agent could not be loaded for execution.');
+        }
+
+        $policyDecision = $this->policies->authorizeExecution($task, $agent);
+
+        if (! $policyDecision->allowed) {
+            throw new InvalidStateException($policyDecision->message());
         }
 
         $execution = new Execution([
