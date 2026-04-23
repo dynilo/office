@@ -5,6 +5,7 @@ use App\Infrastructure\Persistence\Eloquent\Models\Agent;
 use App\Infrastructure\Persistence\Eloquent\Models\Execution;
 use App\Infrastructure\Persistence\Eloquent\Models\ExecutionLog;
 use App\Infrastructure\Persistence\Eloquent\Models\Task;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -34,7 +35,10 @@ it('renders the execution monitor page with initial execution details', function
         ],
     ]);
 
-    $response = $this->actingAs(User::factory()->create())->get('/admin/executions');
+    $user = User::factory()->create();
+    $user->assignRole(Role::OPERATOR);
+
+    $response = $this->actingAs($user)->get('/admin/executions');
 
     $response->assertOk()
         ->assertSee('Execution monitor active')
@@ -49,7 +53,10 @@ it('renders the execution monitor page with initial execution details', function
 });
 
 it('renders empty execution monitor states without runtime data', function (): void {
-    $response = $this->actingAs(User::factory()->create())->get('/admin/executions');
+    $user = User::factory()->create();
+    $user->assignRole(Role::OPERATOR);
+
+    $response = $this->actingAs($user)->get('/admin/executions');
 
     $response->assertOk()
         ->assertSee('Execution monitor active')
@@ -60,7 +67,10 @@ it('renders empty execution monitor states without runtime data', function (): v
 });
 
 it('exposes execution api integration bootstrap on the monitor page', function (): void {
-    $response = $this->actingAs(User::factory()->create())->get('/admin/executions');
+    $user = User::factory()->create();
+    $user->assignRole(Role::OPERATOR);
+
+    $response = $this->actingAs($user)->get('/admin/executions');
 
     $response->assertOk()
         ->assertSee('window.OfficeAdmin', false)

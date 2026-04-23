@@ -1,12 +1,16 @@
 <?php
 
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
 it('renders the admin dashboard shell', function (): void {
-    $response = $this->actingAs(User::factory()->create())->get('/admin');
+    $user = User::factory()->create();
+    $user->assignRole(Role::OBSERVER);
+
+    $response = $this->actingAs($user)->get('/admin');
 
     $response->assertOk()
         ->assertSee('Admin Shell')
@@ -23,8 +27,11 @@ it('renders scaffolded admin pages with stable navigation', function (): void {
         '/admin/audit' => 'Audit',
     ];
 
+    $user = User::factory()->create();
+    $user->assignRole(Role::OBSERVER);
+
     foreach ($pages as $uri => $title) {
-        $this->actingAs(User::factory()->create())->get($uri)
+        $this->actingAs($user)->get($uri)
             ->assertOk()
             ->assertSee('Admin Shell')
             ->assertSee($title)

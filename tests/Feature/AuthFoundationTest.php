@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -16,6 +17,7 @@ it('redirects unauthenticated admin users to login', function (): void {
 
 it('allows authenticated users to access the admin shell', function (): void {
     $user = User::factory()->create();
+    $user->assignRole(Role::OBSERVER);
 
     $this->actingAs($user)
         ->get('/admin')
@@ -40,6 +42,7 @@ it('logs users in and out with session authentication', function (): void {
         'email' => 'admin@example.com',
         'password' => Hash::make('correct-password'),
     ]);
+    $user->assignRole(Role::OBSERVER);
 
     $this->post('/login', [
         'email' => 'admin@example.com',

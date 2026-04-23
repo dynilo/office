@@ -3,6 +3,7 @@
 use App\Domain\Agents\Enums\AgentStatus;
 use App\Infrastructure\Persistence\Eloquent\Models\Agent;
 use App\Infrastructure\Persistence\Eloquent\Models\AgentProfile;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -26,7 +27,10 @@ it('renders the agent management page with initial agent data and form controls'
         ],
     ]);
 
-    $response = $this->actingAs(User::factory()->create())->get('/admin/agents');
+    $user = User::factory()->create();
+    $user->assignRole(Role::OPERATOR);
+
+    $response = $this->actingAs($user)->get('/admin/agents');
 
     $response->assertOk()
         ->assertSee('Agent management active')
@@ -40,7 +44,10 @@ it('renders the agent management page with initial agent data and form controls'
 });
 
 it('exposes agent api integration bootstrap on the management page', function (): void {
-    $response = $this->actingAs(User::factory()->create())->get('/admin/agents');
+    $user = User::factory()->create();
+    $user->assignRole(Role::OBSERVER);
+
+    $response = $this->actingAs($user)->get('/admin/agents');
 
     $response->assertOk()
         ->assertSee('window.OfficeAdmin', false)
