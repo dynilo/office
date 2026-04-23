@@ -185,6 +185,7 @@
             .grid { grid-template-columns: 1fr; }
         }
     </style>
+    @yield('pageStyles')
 </head>
 <body>
     <div class="shell">
@@ -213,5 +214,6 @@
     <script>
         window.OfficeAdmin = @json($bootstrap);
     </script>
+    @yield('pageScripts')
 </body>
 </html>

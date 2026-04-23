@@ -27,6 +27,6 @@ it('renders scaffolded admin pages with stable navigation', function (): void {
             ->assertOk()
             ->assertSee('Admin Shell')
             ->assertSee($title)
-            ->assertSee('/api/admin/summary');
+            ->assertSee('\/api\/admin\/summary', false);
     }
 });
