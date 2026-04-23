@@ -32,9 +32,9 @@ Route::prefix('documents')->group(function (): void {
 });
 
 Route::prefix('admin')->group(function (): void {
-    Route::get('/summary', [AdminController::class, 'summary']);
-    Route::get('/agents', [AdminController::class, 'agents']);
-    Route::get('/tasks', [AdminController::class, 'tasks']);
-    Route::get('/executions', [AdminController::class, 'executions']);
-    Route::get('/audit-events', [AdminController::class, 'auditEvents']);
+    Route::get('/summary', [AdminController::class, 'summary'])->name('api.admin.summary');
+    Route::get('/agents', [AdminController::class, 'agents'])->name('api.admin.agents');
+    Route::get('/tasks', [AdminController::class, 'tasks'])->name('api.admin.tasks');
+    Route::get('/executions', [AdminController::class, 'executions'])->name('api.admin.executions');
+    Route::get('/audit-events', [AdminController::class, 'auditEvents'])->name('api.admin.audit-events');
 });
