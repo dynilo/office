@@ -17,6 +17,7 @@ class Agent extends Model
 
     /** @use HasFactory<AgentFactory> */
     use HasFactory;
+
     use HasUlids;
 
     public $incrementing = false;
@@ -65,6 +66,11 @@ class Agent extends Model
     public function executions(): HasMany
     {
         return $this->hasMany(Execution::class);
+    }
+
+    public function approvalRequests(): HasMany
+    {
+        return $this->hasMany(ApprovalRequest::class);
     }
 
     public function providerUsageRecords(): HasMany

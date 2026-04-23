@@ -2,6 +2,7 @@
 
 namespace App\Application\Executions\Services;
 
+use App\Application\Approvals\Services\HumanApprovalGateService;
 use App\Application\Audit\Data\AuditActorData;
 use App\Application\Audit\Data\AuditEventData;
 use App\Application\Audit\Data\AuditSubjectData;
@@ -27,6 +28,7 @@ final class ExecutionLifecycleService
         private readonly AuditEventWriter $audit,
         private readonly ProviderUsageCostTracker $costs,
         private readonly PolicyEngineService $policies,
+        private readonly HumanApprovalGateService $approvals,
     ) {}
 
     public function createPendingForAssignedTask(string $taskId, string $idempotencyKey): Execution
@@ -59,6 +61,8 @@ final class ExecutionLifecycleService
         if (! $policyDecision->allowed) {
             throw new InvalidStateException($policyDecision->message());
         }
+
+        $this->approvals->assertExecutionCanStart($task, $agent);
 
         $execution = new Execution([
             'task_id' => $task->id,
