@@ -1,13 +1,13 @@
 <?php
 
-use App\Application\Providers\Contracts\LlmProvider;
-use App\Application\Providers\Data\LlmRequestData;
-use App\Application\Providers\Data\LlmResponseData;
-use App\Application\Providers\Exceptions\LlmProviderException;
 use App\Application\Memory\Contracts\EmbeddingGenerator;
 use App\Application\Memory\Contracts\KnowledgeSimilaritySearch;
 use App\Application\Memory\Data\EmbeddingData;
 use App\Application\Memory\Data\SimilarityMatchData;
+use App\Application\Providers\Contracts\LlmProvider;
+use App\Application\Providers\Data\LlmRequestData;
+use App\Application\Providers\Data\LlmResponseData;
+use App\Application\Providers\Exceptions\LlmProviderException;
 use App\Domain\Agents\Enums\AgentStatus;
 use App\Domain\Executions\Enums\ExecutionStatus;
 use App\Domain\Tasks\Enums\TaskStatus;
@@ -71,8 +71,7 @@ it('runs one queued research task end to end with retrieved context', function (
     {
         public function __construct(
             private readonly KnowledgeItem $knowledgeItem,
-        ) {
-        }
+        ) {}
 
         public function search(array $embedding, int $limit = 5): array
         {
@@ -161,6 +160,17 @@ it('handles the provider failure path and updates states correctly', function ()
             'research_question' => 'Summarize the vendor landscape.',
         ],
     ]);
+
+    app()->bind(EmbeddingGenerator::class, fn () => new class implements EmbeddingGenerator
+    {
+        public function generate(string $input): EmbeddingData
+        {
+            return new EmbeddingData(
+                vector: [0.11, 0.22, 0.33],
+                model: 'fake-embedding-model',
+            );
+        }
+    });
 
     app()->bind(LlmProvider::class, fn () => new class implements LlmProvider
     {

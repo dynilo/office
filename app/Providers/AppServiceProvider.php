@@ -11,6 +11,7 @@ use App\Domain\Executions\Contracts\ExecutionRepository;
 use App\Domain\Tasks\Contracts\TaskRepository;
 use App\Infrastructure\Documents\Parsers\PlainTextDocumentParser;
 use App\Infrastructure\Memory\NullEmbeddingGenerator;
+use App\Infrastructure\Memory\OpenAiCompatibleEmbeddingGenerator;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentAgentRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentExecutionRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentTaskRepository;
@@ -31,7 +32,16 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(AgentRepository::class, EloquentAgentRepository::class);
         $this->app->bind(ExecutionRepository::class, EloquentExecutionRepository::class);
         $this->app->bind(TaskRepository::class, EloquentTaskRepository::class);
-        $this->app->bind(EmbeddingGenerator::class, NullEmbeddingGenerator::class);
+        $this->app->bind(EmbeddingGenerator::class, function ($app): EmbeddingGenerator {
+            if (config('providers.embeddings.default') === 'openai_compatible') {
+                return new OpenAiCompatibleEmbeddingGenerator(
+                    config('providers.embeddings.openai_compatible'),
+                    $app->make(SecretRedactor::class),
+                );
+            }
+
+            return new NullEmbeddingGenerator;
+        });
         $this->app->bind(KnowledgeSimilaritySearch::class, PgvectorKnowledgeSimilaritySearch::class);
         $this->app->singleton(DocumentParserRegistry::class, function ($app): DocumentParserRegistry {
             return new DocumentParserRegistry([
