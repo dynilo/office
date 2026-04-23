@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Infrastructure\Persistence\Eloquent\Models\Agent;
+use App\Infrastructure\Persistence\Eloquent\Models\Execution;
+use App\Infrastructure\Persistence\Eloquent\Models\ExecutionLog;
 use App\Infrastructure\Persistence\Eloquent\Models\Task;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
@@ -78,7 +80,31 @@ class AdminShellController extends Controller
 
     public function executions(): View
     {
-        return $this->page('executions', 'Executions');
+        $executions = Execution::query()
+            ->with(['agent', 'task', 'logs' => fn ($query) => $query->orderBy('sequence')])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(100)
+            ->get()
+            ->map(fn (Execution $execution): array => $this->serializeExecution($execution))
+            ->values()
+            ->all();
+
+        return $this->page(
+            page: 'executions',
+            title: 'Executions',
+            view: 'admin.executions',
+            bootstrap: [
+                'initialExecutions' => $executions,
+                'executionMonitor' => [
+                    'list' => route('api.admin.executions'),
+                    'refreshIntervalMs' => 15000,
+                ],
+            ],
+            data: [
+                'executions' => $executions,
+            ],
+        );
     }
 
     public function audit(): View
@@ -172,6 +198,45 @@ class AdminShellController extends Controller
             'submitted_at' => $task->submitted_at?->toIso8601String(),
             'created_at' => $task->created_at?->toIso8601String(),
             'updated_at' => $task->updated_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializeExecution(Execution $execution): array
+    {
+        return [
+            'id' => $execution->id,
+            'task_id' => $execution->task_id,
+            'task_title' => $execution->task?->title,
+            'agent_id' => $execution->agent_id,
+            'agent_name' => $execution->agent?->name,
+            'status' => $execution->status?->value,
+            'attempt' => $execution->attempt,
+            'retry_count' => $execution->retry_count,
+            'max_retries' => $execution->max_retries,
+            'failure_classification' => $execution->failure_classification,
+            'error_message' => $execution->error_message,
+            'input_snapshot' => $execution->input_snapshot ?? [],
+            'output_payload' => $execution->output_payload ?? [],
+            'provider_response' => $execution->provider_response ?? [],
+            'started_at' => $execution->started_at?->toIso8601String(),
+            'finished_at' => $execution->finished_at?->toIso8601String(),
+            'next_retry_at' => $execution->next_retry_at?->toIso8601String(),
+            'created_at' => $execution->created_at?->toIso8601String(),
+            'updated_at' => $execution->updated_at?->toIso8601String(),
+            'logs' => $execution->logs
+                ->map(fn (ExecutionLog $log): array => [
+                    'id' => $log->id,
+                    'sequence' => $log->sequence,
+                    'level' => $log->level,
+                    'message' => $log->message,
+                    'context' => $log->context ?? [],
+                    'logged_at' => $log->logged_at?->toIso8601String(),
+                ])
+                ->values()
+                ->all(),
         ];
     }
 }
