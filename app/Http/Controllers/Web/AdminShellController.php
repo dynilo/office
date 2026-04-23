@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Application\Agents\Services\CoordinatorAgent;
 use App\Application\Communications\Services\AgentCommunicationQueryService;
+use App\Application\CompanyLoop\Data\CompanyLoopReportData;
+use App\Application\CompanyLoop\Services\CompanyLoopService;
+use App\Domain\Agents\Enums\AgentStatus;
 use App\Http\Controllers\Controller;
 use App\Infrastructure\Persistence\Eloquent\Models\Agent;
 use App\Infrastructure\Persistence\Eloquent\Models\AgentCommunicationLog;
@@ -17,6 +21,7 @@ use App\Infrastructure\Persistence\Eloquent\Models\Task;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Throwable;
 
 class AdminShellController extends Controller
 {
@@ -247,9 +252,102 @@ class AdminShellController extends Controller
         );
     }
 
+    public function companyLoop(): View
+    {
+        return $this->companyLoopPage();
+    }
+
+    public function runCompanyLoop(Request $request, CompanyLoopService $companyLoop): View
+    {
+        $validated = $request->validate([
+            'goal' => ['required', 'string', 'min:10', 'max:2000'],
+            'context_json' => ['nullable', 'json'],
+        ]);
+
+        $coordinator = $this->activeCoordinator();
+        $context = $this->decodeCompanyLoopContext((string) ($validated['context_json'] ?? ''));
+
+        if (! $coordinator instanceof Agent) {
+            return $this->companyLoopPage(
+                error: 'No active coordinator agent is available. Activate a coordinator before running the company loop.',
+                oldInput: [
+                    'goal' => (string) $validated['goal'],
+                    'context_json' => (string) ($validated['context_json'] ?? ''),
+                ],
+            );
+        }
+
+        try {
+            $report = $companyLoop->run(
+                coordinator: $coordinator,
+                goal: (string) $validated['goal'],
+                context: $context,
+            );
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return $this->companyLoopPage(
+                error: 'Company loop run failed safely: '.$exception->getMessage(),
+                oldInput: [
+                    'goal' => (string) $validated['goal'],
+                    'context_json' => (string) ($validated['context_json'] ?? ''),
+                ],
+            );
+        }
+
+        return $this->companyLoopPage(report: $report);
+    }
+
     public function audit(): View
     {
         return $this->page('audit', 'Audit');
+    }
+
+    /**
+     * @param  array<string, string>  $oldInput
+     */
+    private function companyLoopPage(
+        ?CompanyLoopReportData $report = null,
+        ?string $error = null,
+        array $oldInput = [],
+    ): View {
+        $coordinator = $this->activeCoordinator();
+        $specialists = Agent::query()
+            ->where('status', AgentStatus::Active)
+            ->whereIn('role', ['strategy', 'finance', 'legal_compliance'])
+            ->orderBy('role')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Agent $agent): array => $this->serializeAgent($agent))
+            ->values()
+            ->all();
+        $lastReport = $report?->toArray();
+
+        return $this->page(
+            page: 'company-loop',
+            title: 'Company Loop',
+            view: 'admin.company-loop',
+            bootstrap: [
+                'companyLoopRun' => [
+                    'submit' => route('admin.company-loop.run'),
+                    'method' => 'POST',
+                    'required_roles' => ['coordinator', 'strategy', 'finance', 'legal_compliance'],
+                ],
+                'companyLoopPrerequisites' => [
+                    'coordinator' => $coordinator instanceof Agent ? $this->serializeAgent($coordinator) : null,
+                    'specialists' => $specialists,
+                ],
+                'lastReport' => $lastReport,
+                'companyLoopError' => $error,
+            ],
+            data: [
+                'coordinator' => $coordinator,
+                'specialists' => $specialists,
+                'report' => $lastReport,
+                'error' => $error,
+                'oldInput' => $oldInput,
+            ],
+        );
     }
 
     private function page(
@@ -302,8 +400,35 @@ class AdminShellController extends Controller
             ['key' => 'executions', 'label' => 'Executions', 'href' => route('admin.executions')],
             ['key' => 'documents', 'label' => 'Documents', 'href' => route('admin.documents')],
             ['key' => 'conversations', 'label' => 'Conversations', 'href' => route('admin.conversations')],
+            ['key' => 'company-loop', 'label' => 'Company Loop', 'href' => route('admin.company-loop')],
             ['key' => 'audit', 'label' => 'Audit', 'href' => route('admin.audit')],
         ]);
+    }
+
+    private function activeCoordinator(): ?Agent
+    {
+        return Agent::query()
+            ->with('profile')
+            ->where('role', CoordinatorAgent::ROLE)
+            ->where('status', AgentStatus::Active)
+            ->orderBy('name')
+            ->first();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeCompanyLoopContext(string $contextJson): array
+    {
+        $contextJson = trim($contextJson);
+
+        if ($contextJson === '') {
+            return [];
+        }
+
+        $decoded = json_decode($contextJson, true, flags: JSON_THROW_ON_ERROR);
+
+        return is_array($decoded) ? $decoded : [];
     }
 
     /**

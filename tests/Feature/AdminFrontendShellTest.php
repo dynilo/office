@@ -65,6 +65,7 @@ it('renders scaffolded admin pages with stable navigation', function (): void {
         '/admin/executions' => 'Executions',
         '/admin/documents' => 'Documents',
         '/admin/conversations' => 'Conversations',
+        '/admin/company-loop' => 'Company Loop',
         '/admin/audit' => 'Audit',
     ];
 
