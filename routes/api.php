@@ -27,4 +27,5 @@ Route::prefix('tasks')->group(function (): void {
 
 Route::prefix('documents')->group(function (): void {
     Route::post('/ingest', [DocumentController::class, 'store']);
+    Route::post('/{document}/extract-knowledge', [DocumentController::class, 'extractKnowledge']);
 });

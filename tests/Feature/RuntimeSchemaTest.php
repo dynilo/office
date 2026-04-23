@@ -186,5 +186,6 @@ it('exposes coherent model relations', function (): void {
         ->and($task->artifacts)->toHaveCount(2)
         ->and($execution->logs)->toHaveCount(2)
         ->and($execution->artifacts)->toHaveCount(2)
-        ->and($document->knowledgeItems)->toHaveCount(2);
+        ->and($document->knowledgeItems)->toHaveCount(2)
+        ->and($document->knowledgeItems->first()?->metadata)->toBeArray();
 });
