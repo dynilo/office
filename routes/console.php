@@ -5,6 +5,7 @@ use App\Application\Tasks\Services\RunQueuedResearchTaskService;
 use App\Support\Backup\BackupBaselineService;
 use App\Support\Database\PostgresqlRuntimeValidation;
 use App\Support\Observability\ObservabilityService;
+use App\Support\Redis\RedisRuntimeValidation;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Symfony\Component\Console\Command\Command;
@@ -58,3 +59,11 @@ Artisan::command('postgresql:validate-runtime', function (PostgresqlRuntimeValid
 
     return $report['ready'] === true ? Command::SUCCESS : Command::FAILURE;
 })->purpose('Validate live PostgreSQL runtime connectivity and schema alignment.');
+
+Artisan::command('redis:validate-runtime', function (RedisRuntimeValidation $validation) {
+    $report = $validation->report();
+
+    $this->line(json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+    return $report['ready'] === true ? Command::SUCCESS : Command::FAILURE;
+})->purpose('Validate live Redis runtime connectivity for queue, cache, and broadcast paths.');
