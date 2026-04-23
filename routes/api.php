@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AgentController;
+use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\TaskController;
 use Illuminate\Support\Facades\Route;
@@ -28,4 +29,12 @@ Route::prefix('tasks')->group(function (): void {
 Route::prefix('documents')->group(function (): void {
     Route::post('/ingest', [DocumentController::class, 'store']);
     Route::post('/{document}/extract-knowledge', [DocumentController::class, 'extractKnowledge']);
+});
+
+Route::prefix('admin')->group(function (): void {
+    Route::get('/summary', [AdminController::class, 'summary']);
+    Route::get('/agents', [AdminController::class, 'agents']);
+    Route::get('/tasks', [AdminController::class, 'tasks']);
+    Route::get('/executions', [AdminController::class, 'executions']);
+    Route::get('/audit-events', [AdminController::class, 'auditEvents']);
 });
