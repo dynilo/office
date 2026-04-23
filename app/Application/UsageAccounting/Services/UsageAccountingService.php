@@ -19,7 +19,25 @@ final class UsageAccountingService
         ?string $taskId = null,
         ?string $executionId = null,
         array $metadata = [],
+        ?string $dedupeKey = null,
     ): UsageAccountingRecord {
+        if ($dedupeKey !== null) {
+            return UsageAccountingRecord::query()->updateOrCreate(
+                ['dedupe_key' => $dedupeKey],
+                [
+                    'organization_id' => $organizationId,
+                    'user_id' => $userId,
+                    'agent_id' => $agentId,
+                    'task_id' => $taskId,
+                    'execution_id' => $executionId,
+                    'metric_key' => $metricKey,
+                    'quantity' => $quantity,
+                    'metadata' => $metadata,
+                    'recorded_at' => now(),
+                ],
+            );
+        }
+
         return UsageAccountingRecord::query()->create([
             'organization_id' => $organizationId,
             'user_id' => $userId,
@@ -27,6 +45,7 @@ final class UsageAccountingService
             'task_id' => $taskId,
             'execution_id' => $executionId,
             'metric_key' => $metricKey,
+            'dedupe_key' => null,
             'quantity' => $quantity,
             'metadata' => $metadata,
             'recorded_at' => now(),

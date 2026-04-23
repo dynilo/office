@@ -61,6 +61,11 @@ class TaskController extends Controller
                 'priority' => $task->priority->value,
                 'source' => $task->source,
             ],
+            dedupeKey: sprintf(
+                '%s:%s',
+                (string) config('usage_accounting.dedupe_keys.task_created_prefix', 'task-created'),
+                $task->id,
+            ),
         );
 
         return (new TaskResource($task))

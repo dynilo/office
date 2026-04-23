@@ -26,6 +26,7 @@ it('creates usage accounting persistence distinct from provider cost tracking', 
             'task_id',
             'execution_id',
             'metric_key',
+            'dedupe_key',
             'quantity',
             'metadata',
             'recorded_at',
@@ -54,6 +55,7 @@ it('records per-user and per-organization task intake usage', function (): void 
     $usage = app(UsageAccountingService::class);
 
     expect($record->metric_key)->toBe('tasks.created')
+        ->and($record->dedupe_key)->toBe('task-created:'.$record->task_id)
         ->and($record->organization_id)->toBe($organization->id)
         ->and($record->user_id)->toBe($user->id)
         ->and($usage->total('tasks.created'))->toBe(1)
@@ -89,6 +91,8 @@ it('records per-agent and runtime execution usage without relying on provider co
         ->and($usage->total('executions.created', organizationId: $organization->id))->toBe(1)
         ->and($usage->total('executions.created', agentId: $agent->id))->toBe(1)
         ->and($usage->total('executions.succeeded'))->toBe(1)
+        ->and(UsageAccountingRecord::query()->where('metric_key', 'executions.created')->sole()->dedupe_key)->toBe('execution-created:'.$execution->id)
+        ->and(UsageAccountingRecord::query()->where('metric_key', 'executions.succeeded')->sole()->dedupe_key)->toBe('execution-succeeded:'.$execution->id)
         ->and($usage->totalsByMetric(agentId: $agent->id))->toBe([
             'executions.created' => 1,
             'executions.succeeded' => 1,
@@ -125,6 +129,7 @@ it('records failed execution usage with failure metadata', function (): void {
 
     expect($record->execution_id)->toBe($execution->id)
         ->and($record->agent_id)->toBe($execution->agent_id)
+        ->and($record->dedupe_key)->toBe('execution-failed:'.$execution->id)
         ->and($record->metadata['failure_classification'] ?? null)->toBe('validation_failure')
         ->and(app(UsageAccountingService::class)->total('executions.failed', organizationId: $organization->id))->toBe(1);
 });

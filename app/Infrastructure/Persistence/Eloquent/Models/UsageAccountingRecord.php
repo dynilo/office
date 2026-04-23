@@ -31,6 +31,7 @@ class UsageAccountingRecord extends Model
         'task_id',
         'execution_id',
         'metric_key',
+        'dedupe_key',
         'quantity',
         'metadata',
         'recorded_at',

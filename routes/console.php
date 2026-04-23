@@ -11,6 +11,7 @@ use App\Support\Database\PostgresqlRuntimeValidation;
 use App\Support\Memory\EmbeddingProviderRuntimeValidation;
 use App\Support\Observability\ObservabilityService;
 use App\Support\Redis\RedisRuntimeValidation;
+use App\Support\Usage\UsageAccountingHardeningValidation;
 use App\Support\Workers\QueueProcessValidation;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -121,3 +122,11 @@ Artisan::command('company-loop:validate-production', function (CompanyLoopProduc
 
     return $report['ready'] === true ? Command::SUCCESS : Command::FAILURE;
 })->purpose('Validate end-to-end company loop production readiness with a rollback-safe probe.');
+
+Artisan::command('usage-accounting:validate-runtime', function (UsageAccountingHardeningValidation $validation) {
+    $report = $validation->report();
+
+    $this->line(json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+    return $report['ready'] === true ? Command::SUCCESS : Command::FAILURE;
+})->purpose('Validate usage-accounting and provider-cost tracking reliability assumptions.');

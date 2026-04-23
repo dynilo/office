@@ -125,6 +125,11 @@ final class ExecutionLifecycleService
                 'status' => $execution->status->value,
                 'attempt' => $execution->attempt,
             ],
+            dedupeKey: sprintf(
+                '%s:%s',
+                (string) config('usage_accounting.dedupe_keys.execution_created_prefix', 'execution-created'),
+                $execution->id,
+            ),
         );
 
         return $execution->refresh()->load('logs');
@@ -225,6 +230,11 @@ final class ExecutionLifecycleService
             metadata: [
                 'attempt' => $execution->attempt,
             ],
+            dedupeKey: sprintf(
+                '%s:%s',
+                (string) config('usage_accounting.dedupe_keys.execution_succeeded_prefix', 'execution-succeeded'),
+                $execution->id,
+            ),
         );
 
         return $execution->refresh()->load('logs');
@@ -289,6 +299,11 @@ final class ExecutionLifecycleService
                 'attempt' => $execution->attempt,
                 'failure_classification' => $failureClassification,
             ],
+            dedupeKey: sprintf(
+                '%s:%s',
+                (string) config('usage_accounting.dedupe_keys.execution_failed_prefix', 'execution-failed'),
+                $execution->id,
+            ),
         );
 
         return $execution->refresh()->load('logs');
