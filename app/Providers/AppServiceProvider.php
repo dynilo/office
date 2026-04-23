@@ -6,6 +6,7 @@ use App\Application\Documents\Services\DocumentParserRegistry;
 use App\Application\Memory\Contracts\EmbeddingGenerator;
 use App\Application\Memory\Contracts\KnowledgeSimilaritySearch;
 use App\Application\Providers\Contracts\LlmProvider;
+use App\Application\Providers\Services\ProviderFailoverService;
 use App\Domain\Agents\Contracts\AgentRepository;
 use App\Domain\Executions\Contracts\ExecutionRepository;
 use App\Domain\Tasks\Contracts\TaskRepository;
@@ -18,6 +19,7 @@ use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentTaskRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\PgvectorKnowledgeSimilaritySearch;
 use App\Infrastructure\Providers\OpenAiCompatibleProvider;
 use App\Support\Database\PostgresqlProductionReadiness;
+use App\Support\Exceptions\InvalidStateException;
 use App\Support\Queue\RedisQueueProductionReadiness;
 use App\Support\Security\SecretRedactor;
 use Illuminate\Support\ServiceProvider;
@@ -49,11 +51,40 @@ class AppServiceProvider extends ServiceProvider
             ]);
         });
         $this->app->bind(LlmProvider::class, function ($app): LlmProvider {
-            return new OpenAiCompatibleProvider(
-                config('providers.openai_compatible'),
-                $app->make(SecretRedactor::class),
-            );
+            $default = (string) config('providers.default', 'openai_compatible');
+
+            if ($default === 'failover') {
+                $order = config('providers.failover.order', []);
+                $providers = [];
+
+                foreach ($order as $name) {
+                    $providers[$name] = $this->makeLlmProvider($name, $app->make(SecretRedactor::class));
+                }
+
+                return new ProviderFailoverService(
+                    providers: $providers,
+                    order: $order,
+                    fallbackOnRetriableOnly: (bool) config('providers.failover.fallback_on_retriable_only', true),
+                );
+            }
+
+            return $this->makeLlmProvider($default, $app->make(SecretRedactor::class));
         });
+    }
+
+    private function makeLlmProvider(string $name, SecretRedactor $redactor): LlmProvider
+    {
+        return match ($name) {
+            'openai_compatible' => new OpenAiCompatibleProvider(
+                config('providers.openai_compatible'),
+                $redactor,
+            ),
+            'openai_compatible_secondary' => new OpenAiCompatibleProvider(
+                config('providers.openai_compatible_secondary'),
+                $redactor,
+            ),
+            default => throw new InvalidStateException("LLM provider [{$name}] is not supported."),
+        };
     }
 
     /**
