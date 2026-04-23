@@ -6,6 +6,7 @@ use App\Application\Audit\Data\AuditActorData;
 use App\Application\Audit\Data\AuditEventData;
 use App\Application\Audit\Data\AuditSubjectData;
 use App\Application\Audit\Services\AuditEventWriter;
+use App\Application\Costs\Services\ProviderUsageCostTracker;
 use App\Application\Executions\Guards\ExecutionTransitionGuard;
 use App\Application\Runtime\Events\ExecutionCreated;
 use App\Application\Runtime\Events\ExecutionStatusChanged;
@@ -23,8 +24,8 @@ final class ExecutionLifecycleService
         private readonly ExecutionTransitionGuard $guard,
         private readonly ExecutionLogWriter $logs,
         private readonly AuditEventWriter $audit,
-    ) {
-    }
+        private readonly ProviderUsageCostTracker $costs,
+    ) {}
 
     public function createPendingForAssignedTask(string $taskId, string $idempotencyKey): Execution
     {
@@ -129,8 +130,7 @@ final class ExecutionLifecycleService
         string $executionId,
         array $outputPayload = [],
         ?array $providerResponse = null,
-    ): Execution
-    {
+    ): Execution {
         $execution = $this->getExecution($executionId);
         $from = $execution->status;
         $this->guard->assertCanTransition($from, ExecutionStatus::Succeeded);
@@ -141,9 +141,13 @@ final class ExecutionLifecycleService
         $execution->error_message = null;
         $execution->finished_at = now();
         $execution = $this->executions->save($execution);
+        $usage = $providerResponse === null
+            ? null
+            : $this->costs->recordForExecution($execution, $providerResponse);
 
         $this->logs->write($execution, 'info', 'execution.succeeded', [
             'output_keys' => array_keys($outputPayload),
+            'provider_usage_record_id' => $usage?->id,
         ]);
         $this->audit->write(new AuditEventData(
             eventName: 'execution.status_changed',
@@ -154,6 +158,7 @@ final class ExecutionLifecycleService
                 'from' => ExecutionStatus::Running->value,
                 'to' => ExecutionStatus::Succeeded->value,
                 'output_keys' => array_keys($outputPayload),
+                'provider_usage_record_id' => $usage?->id,
             ],
         ));
 
@@ -175,8 +180,7 @@ final class ExecutionLifecycleService
         array $context = [],
         ?string $failureClassification = null,
         mixed $nextRetryAt = null,
-    ): Execution
-    {
+    ): Execution {
         $execution = $this->getExecution($executionId);
         $from = $execution->status;
         $this->guard->assertCanTransition($from, ExecutionStatus::Failed);

@@ -6,12 +6,13 @@ use App\Domain\Tasks\Enums\TaskPriority;
 use App\Domain\Tasks\Enums\TaskStatus;
 use App\Infrastructure\Persistence\Eloquent\Models\Agent;
 use App\Infrastructure\Persistence\Eloquent\Models\AgentProfile;
-use App\Infrastructure\Persistence\Eloquent\Models\AuditEvent;
 use App\Infrastructure\Persistence\Eloquent\Models\Artifact;
+use App\Infrastructure\Persistence\Eloquent\Models\AuditEvent;
 use App\Infrastructure\Persistence\Eloquent\Models\Document;
 use App\Infrastructure\Persistence\Eloquent\Models\Execution;
 use App\Infrastructure\Persistence\Eloquent\Models\ExecutionLog;
 use App\Infrastructure\Persistence\Eloquent\Models\KnowledgeItem;
+use App\Infrastructure\Persistence\Eloquent\Models\ProviderUsageRecord;
 use App\Infrastructure\Persistence\Eloquent\Models\Task;
 use App\Infrastructure\Persistence\Eloquent\Models\TaskAssignmentDecision;
 use App\Infrastructure\Persistence\Eloquent\Models\TaskDependency;
@@ -25,7 +26,8 @@ it('loads the runtime schema through migrations', function (): void {
         ->and(Schema::hasTable('knowledge_items'))->toBeTrue()
         ->and(Schema::hasTable('task_assignment_decisions'))->toBeTrue()
         ->and(Schema::hasTable('artifacts'))->toBeTrue()
-        ->and(Schema::hasTable('audit_events'))->toBeTrue();
+        ->and(Schema::hasTable('audit_events'))->toBeTrue()
+        ->and(Schema::hasTable('provider_usage_records'))->toBeTrue();
 });
 
 it('creates the expected runtime tables and columns', function (): void {
@@ -99,6 +101,19 @@ it('creates the expected runtime tables and columns', function (): void {
             'file_metadata',
             'metadata',
         ]))->toBeTrue()
+        ->and(Schema::hasColumns('provider_usage_records', [
+            'id',
+            'execution_id',
+            'task_id',
+            'agent_id',
+            'provider',
+            'model',
+            'input_tokens',
+            'output_tokens',
+            'total_tokens',
+            'estimated_cost_micros',
+            'currency',
+        ]))->toBeTrue()
         ->and(Schema::hasColumns('task_assignment_decisions', [
             'task_id',
             'agent_id',
@@ -144,6 +159,7 @@ it('factories produce valid persisted records', function (): void {
     $execution = Execution::factory()->for($agent)->for($task)->create([
         'status' => ExecutionStatus::Running,
     ]);
+    $usageRecord = ProviderUsageRecord::factory()->for($agent)->for($task)->for($execution)->create();
     $log = ExecutionLog::factory()->for($execution)->create();
     $artifact = Artifact::factory()->for($task)->for($execution)->create();
     $auditEvent = AuditEvent::query()->create([
@@ -173,6 +189,8 @@ it('factories produce valid persisted records', function (): void {
         ->and($execution->idempotency_key)->not->toBeNull()
         ->and($execution->retry_count)->not->toBeNull()
         ->and($execution->provider_response)->not->toBeNull()
+        ->and($usageRecord->execution_id)->toBe($execution->id)
+        ->and($usageRecord->total_tokens)->toBe($usageRecord->input_tokens + $usageRecord->output_tokens)
         ->and($log->execution_id)->toBe($execution->id)
         ->and($artifact->execution_id)->toBe($execution->id)
         ->and($artifact->task_id)->toBe($task->id)
@@ -200,6 +218,7 @@ it('exposes coherent model relations', function (): void {
         'context' => ['considered_agent_ids' => [$agent->id]],
     ]);
     $execution = Execution::factory()->for($agent)->for($task)->create();
+    ProviderUsageRecord::factory()->for($agent)->for($task)->for($execution)->create();
     ExecutionLog::factory()->count(2)->for($execution)->sequence(
         ['sequence' => 1],
         ['sequence' => 2],
@@ -216,8 +235,10 @@ it('exposes coherent model relations', function (): void {
         ->and($task->dependencies->first()?->is($dependencyTask))->toBeTrue()
         ->and($task->assignmentDecisions)->toHaveCount(1)
         ->and($task->executions)->toHaveCount(1)
+        ->and($task->providerUsageRecords)->toHaveCount(1)
         ->and($task->artifacts)->toHaveCount(2)
         ->and($execution->logs)->toHaveCount(2)
+        ->and($execution->providerUsageRecords)->toHaveCount(1)
         ->and($execution->artifacts)->toHaveCount(2)
         ->and($document->knowledgeItems)->toHaveCount(2)
         ->and($document->knowledgeItems->first()?->metadata)->toBeArray();

@@ -16,6 +16,7 @@ class Task extends Model
 {
     /** @use HasFactory<TaskFactory> */
     use HasFactory;
+
     use HasUlids;
 
     public $incrementing = false;
@@ -81,6 +82,11 @@ class Task extends Model
     public function executions(): HasMany
     {
         return $this->hasMany(Execution::class);
+    }
+
+    public function providerUsageRecords(): HasMany
+    {
+        return $this->hasMany(ProviderUsageRecord::class);
     }
 
     public function artifacts(): HasMany
