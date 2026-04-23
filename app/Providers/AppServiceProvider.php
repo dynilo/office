@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Application\Documents\Services\DocumentParserRegistry;
+use App\Application\Integrations\Contracts\ExternalIntegrationGateway;
+use App\Application\Integrations\Services\ExternalIntegrationGatewayService;
 use App\Application\Memory\Contracts\EmbeddingGenerator;
 use App\Application\Memory\Contracts\KnowledgeSimilaritySearch;
 use App\Application\Providers\Contracts\LlmProvider;
@@ -11,6 +13,7 @@ use App\Domain\Agents\Contracts\AgentRepository;
 use App\Domain\Executions\Contracts\ExecutionRepository;
 use App\Domain\Tasks\Contracts\TaskRepository;
 use App\Infrastructure\Documents\Parsers\PlainTextDocumentParser;
+use App\Infrastructure\Integrations\StubSlackIntegrationConnector;
 use App\Infrastructure\Memory\NullEmbeddingGenerator;
 use App\Infrastructure\Memory\OpenAiCompatibleEmbeddingGenerator;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentAgentRepository;
@@ -53,6 +56,20 @@ class AppServiceProvider extends ServiceProvider
             return new DocumentParserRegistry([
                 $app->make(PlainTextDocumentParser::class),
             ]);
+        });
+        $this->app->singleton(ExternalIntegrationGateway::class, function (): ExternalIntegrationGateway {
+            $connectors = [];
+
+            foreach (config('integrations.connectors', []) as $name => $connectorConfig) {
+                $driver = $connectorConfig['driver'] ?? null;
+
+                $connectors[$name] = match ($driver) {
+                    'stub_slack' => new StubSlackIntegrationConnector($connectorConfig),
+                    default => throw new InvalidStateException("Integration driver [{$driver}] is not supported."),
+                };
+            }
+
+            return new ExternalIntegrationGatewayService($connectors);
         });
         $this->app->bind(LlmProvider::class, function ($app): LlmProvider {
             $default = (string) config('providers.default', 'openai_compatible');
