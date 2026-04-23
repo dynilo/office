@@ -96,6 +96,8 @@ it('creates the expected runtime tables and columns', function (): void {
             'storage_disk',
             'storage_path',
             'checksum',
+            'raw_text',
+            'text_extracted_at',
         ]))->toBeTrue();
 });
 
@@ -143,6 +145,7 @@ it('factories produce valid persisted records', function (): void {
         ->and($log->execution_id)->toBe($execution->id)
         ->and($artifact->execution_id)->toBe($execution->id)
         ->and($artifact->task_id)->toBe($task->id)
+        ->and($document->raw_text)->not->toBeNull()
         ->and($knowledgeItem->document_id)->toBe($document->id);
 });
 

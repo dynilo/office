@@ -25,8 +25,10 @@ class Document extends Model
         'storage_path',
         'checksum',
         'size_bytes',
+        'raw_text',
         'metadata',
         'ingested_at',
+        'text_extracted_at',
     ];
 
     protected function casts(): array
@@ -35,6 +37,7 @@ class Document extends Model
             'size_bytes' => 'integer',
             'metadata' => 'array',
             'ingested_at' => 'immutable_datetime',
+            'text_extracted_at' => 'immutable_datetime',
             'created_at' => 'immutable_datetime',
             'updated_at' => 'immutable_datetime',
         ];

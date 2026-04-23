@@ -23,10 +23,12 @@ class DocumentFactory extends Factory
             'storage_path' => $path,
             'checksum' => hash('sha256', $path),
             'size_bytes' => fake()->numberBetween(1024, 1024 * 1024),
+            'raw_text' => fake()->paragraph(),
             'metadata' => [
                 'source' => fake()->url(),
             ],
             'ingested_at' => now()->subDay(),
+            'text_extracted_at' => now()->subDay(),
         ];
     }
 }
