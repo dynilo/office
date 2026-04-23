@@ -28,7 +28,15 @@ return new class extends Migration
                 'ALTER TABLE knowledge_items ADD COLUMN IF NOT EXISTS embedding vector(%d)',
                 (int) config('memory.pgvector.dimensions', 1536),
             ));
-        } catch (\Throwable) {
+
+            if ((bool) config('memory.pgvector.index.enabled', true)) {
+                DB::statement(sprintf(
+                    'CREATE INDEX IF NOT EXISTS %s ON knowledge_items USING %s (embedding vector_cosine_ops)',
+                    config('memory.pgvector.index.name', 'knowledge_items_embedding_hnsw_idx'),
+                    config('memory.pgvector.index.method', 'hnsw'),
+                ));
+            }
+        } catch (Throwable) {
             // Leave the non-vector columns in place so the runtime can degrade safely.
         }
     }
@@ -37,8 +45,12 @@ return new class extends Migration
     {
         if (DB::getDriverName() === 'pgsql') {
             try {
+                DB::statement(sprintf(
+                    'DROP INDEX IF EXISTS %s',
+                    config('memory.pgvector.index.name', 'knowledge_items_embedding_hnsw_idx'),
+                ));
                 DB::statement('ALTER TABLE knowledge_items DROP COLUMN IF EXISTS embedding');
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 // No-op if the column was never created.
             }
         }

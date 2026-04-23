@@ -24,6 +24,7 @@ it('persists embedding metadata safely when pgvector storage is unavailable', fu
         ->and($persisted->embedding_dimensions)->toBe(3)
         ->and($persisted->embedding_generated_at)->not->toBeNull()
         ->and($persisted->metadata['memory']['vector_storage'] ?? null)->toBe('unavailable')
+        ->and($persisted->metadata['memory']['vector_storage_reason'] ?? null)->toBe('connection_is_pgsql')
         ->and($persisted->metadata['memory']['embedding_dimensions'] ?? null)->toBe(3);
 });
 
@@ -33,6 +34,14 @@ it('returns an empty similarity result set when pgvector search is unavailable',
         'embedding_dimensions' => 3,
         'embedding_generated_at' => now(),
     ]);
+
+    $results = app(KnowledgeSimilaritySearch::class)->search([0.1, 0.2, 0.3], 3);
+
+    expect($results)->toBeArray()->toBeEmpty();
+});
+
+it('returns an empty similarity result set for invalid vector dimensions', function (): void {
+    config()->set('memory.pgvector.dimensions', 4);
 
     $results = app(KnowledgeSimilaritySearch::class)->search([0.1, 0.2, 0.3], 3);
 

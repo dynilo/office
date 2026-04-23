@@ -12,12 +12,11 @@ final class PgvectorKnowledgeSimilaritySearch implements KnowledgeSimilaritySear
 {
     public function __construct(
         private readonly PgvectorCapabilitiesService $capabilities,
-    ) {
-    }
+    ) {}
 
     public function search(array $embedding, int $limit = 5): array
     {
-        if (! $this->capabilities->supportsSimilaritySearch()) {
+        if ($limit < 1 || ! $this->capabilities->supportsSimilaritySearch() || ! $this->capabilities->vectorDimensionsAreValid($embedding)) {
             return [];
         }
 
