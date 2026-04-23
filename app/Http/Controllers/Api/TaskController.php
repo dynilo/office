@@ -56,6 +56,15 @@ class TaskController extends Controller
 
     public function show(Task $task): TaskResource
     {
+        $task->load([
+            'agent',
+            'executions.agent',
+            'executions.logs' => fn ($query) => $query->orderBy('sequence'),
+            'artifacts',
+            'communicationLogs.sender',
+            'communicationLogs.recipient',
+        ]);
+
         return new TaskResource($task);
     }
 }

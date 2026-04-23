@@ -1,7 +1,14 @@
 <?php
 
+use App\Domain\Executions\Enums\ExecutionStatus;
 use App\Domain\Tasks\Enums\TaskPriority;
 use App\Domain\Tasks\Enums\TaskStatus;
+use App\Infrastructure\Persistence\Eloquent\Models\Agent;
+use App\Infrastructure\Persistence\Eloquent\Models\AgentCommunicationLog;
+use App\Infrastructure\Persistence\Eloquent\Models\Artifact;
+use App\Infrastructure\Persistence\Eloquent\Models\AuditEvent;
+use App\Infrastructure\Persistence\Eloquent\Models\Execution;
+use App\Infrastructure\Persistence\Eloquent\Models\ExecutionLog;
 use App\Infrastructure\Persistence\Eloquent\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -95,7 +102,9 @@ it('lists tasks with stable json fields', function (): void {
 });
 
 it('shows a single task with stable json fields', function (): void {
-    $task = Task::factory()->create([
+    $sender = Agent::factory()->create(['name' => 'Coordinator']);
+    $recipient = Agent::factory()->create(['name' => 'Legal Analyst']);
+    $task = Task::factory()->for($recipient, 'agent')->create([
         'title' => 'Summarize contract',
         'summary' => 'Need a concise summary',
         'description' => 'Summarize the contract and flag risky clauses.',
@@ -104,6 +113,37 @@ it('shows a single task with stable json fields', function (): void {
         'source' => 'email',
         'requested_agent_role' => 'legal',
         'payload' => ['document_id' => 'doc_1'],
+    ]);
+    $execution = Execution::factory()->for($recipient, 'agent')->for($task)->create([
+        'status' => ExecutionStatus::Succeeded,
+        'attempt' => 1,
+    ]);
+    ExecutionLog::factory()->for($execution)->create([
+        'sequence' => 1,
+        'message' => 'execution.succeeded',
+    ]);
+    Artifact::factory()->for($task)->for($execution)->create([
+        'kind' => 'json',
+        'name' => 'contract_summary',
+        'content_json' => ['summary' => 'Concise contract summary.'],
+    ]);
+    AuditEvent::query()->create([
+        'event_name' => 'task.created',
+        'auditable_type' => 'task',
+        'auditable_id' => $task->id,
+        'actor_type' => 'user',
+        'actor_id' => 'admin-user',
+        'source' => 'api-test',
+        'metadata' => ['state' => 'queued'],
+        'occurred_at' => now(),
+    ]);
+    AgentCommunicationLog::factory()->create([
+        'sender_agent_id' => $sender->id,
+        'recipient_agent_id' => $recipient->id,
+        'task_id' => $task->id,
+        'message_type' => 'handoff.request',
+        'subject' => 'Contract handoff',
+        'body' => 'Please summarize the contract.',
     ]);
 
     $response = $this->getJson("/api/tasks/{$task->id}");
@@ -116,7 +156,15 @@ it('shows a single task with stable json fields', function (): void {
         ->assertJsonPath('data.source', 'email')
         ->assertJsonPath('data.requested_agent_role', 'legal')
         ->assertJsonPath('data.state', 'queued')
-        ->assertJsonPath('data.payload.document_id', 'doc_1');
+        ->assertJsonPath('data.payload.document_id', 'doc_1')
+        ->assertJsonPath('data.agent_name', 'Legal Analyst')
+        ->assertJsonPath('data.executions.0.id', $execution->id)
+        ->assertJsonPath('data.executions.0.status', 'succeeded')
+        ->assertJsonPath('data.executions.0.logs.0.message', 'execution.succeeded')
+        ->assertJsonPath('data.artifacts.0.name', 'contract_summary')
+        ->assertJsonPath('data.audit_events.0.event_name', 'task.created')
+        ->assertJsonPath('data.communications.0.message_type', 'handoff.request')
+        ->assertJsonPath('data.communications.0.subject', 'Contract handoff');
 });
 
 it('returns validation errors for invalid intake payloads', function (): void {

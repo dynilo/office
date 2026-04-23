@@ -202,6 +202,48 @@
             white-space: pre-wrap;
         }
 
+        .unified-sections {
+            display: grid;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .unified-section {
+            padding-top: 1rem;
+            border-top: 1px solid rgba(20, 33, 61, 0.08);
+        }
+
+        .unified-section h4 {
+            margin: 0 0 0.65rem;
+        }
+
+        .linked-list {
+            display: grid;
+            gap: 0.7rem;
+        }
+
+        .linked-card {
+            display: grid;
+            gap: 0.45rem;
+            padding: 0.85rem;
+            border: 1px solid rgba(20, 33, 61, 0.08);
+            border-radius: 0.9rem;
+            background: rgba(255, 255, 255, 0.58);
+        }
+
+        .linked-card p {
+            margin: 0;
+            color: var(--ink-soft);
+            overflow-wrap: anywhere;
+        }
+
+        .linked-head {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            align-items: center;
+        }
+
         .task-form {
             margin-top: 1rem;
             padding: 1.25rem;
@@ -331,6 +373,76 @@
                     </div>
                     <h4>Payload JSON</h4>
                     <pre class="payload-box">{{ json_encode($selectedTask['payload'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
+                    <div class="unified-sections">
+                        <div class="unified-section">
+                            <h4>Executions</h4>
+                            <div class="linked-list">
+                                @forelse ($selectedTask['executions'] ?? [] as $execution)
+                                    <article class="linked-card">
+                                        <div class="linked-head">
+                                            <span class="pill state-{{ $execution['status'] }}">{{ $execution['status'] }}</span>
+                                            <span class="pill">attempt {{ $execution['attempt'] }}</span>
+                                            <span class="pill">{{ count($execution['logs']) }} logs</span>
+                                        </div>
+                                        <p>{{ $execution['agent_name'] ?: $execution['agent_id'] ?: 'Unassigned agent' }}</p>
+                                    </article>
+                                @empty
+                                    <p class="empty-state">No executions are linked to this task yet.</p>
+                                @endforelse
+                            </div>
+                        </div>
+
+                        <div class="unified-section">
+                            <h4>Artifacts</h4>
+                            <div class="linked-list">
+                                @forelse ($selectedTask['artifacts'] ?? [] as $artifact)
+                                    <article class="linked-card">
+                                        <div class="linked-head">
+                                            <span class="pill">{{ $artifact['kind'] }}</span>
+                                            <span class="pill">{{ $artifact['name'] }}</span>
+                                        </div>
+                                        <p>{{ $artifact['content_text'] ?: json_encode($artifact['content_json'] ?: $artifact['file_metadata']) }}</p>
+                                    </article>
+                                @empty
+                                    <p class="empty-state">No artifacts are linked to this task yet.</p>
+                                @endforelse
+                            </div>
+                        </div>
+
+                        <div class="unified-section">
+                            <h4>Audit events</h4>
+                            <div class="linked-list">
+                                @forelse ($selectedTask['audit_events'] ?? [] as $event)
+                                    <article class="linked-card">
+                                        <div class="linked-head">
+                                            <span class="pill">{{ $event['event_name'] }}</span>
+                                            <span class="pill">{{ $event['source'] }}</span>
+                                        </div>
+                                        <p>{{ $event['actor_type'] }}: {{ $event['actor_id'] }}</p>
+                                    </article>
+                                @empty
+                                    <p class="empty-state">No audit events are linked to this task yet.</p>
+                                @endforelse
+                            </div>
+                        </div>
+
+                        <div class="unified-section">
+                            <h4>Communication history</h4>
+                            <div class="linked-list">
+                                @forelse ($selectedTask['communications'] ?? [] as $message)
+                                    <article class="linked-card">
+                                        <div class="linked-head">
+                                            <span class="pill">{{ $message['message_type'] }}</span>
+                                            <span class="pill">{{ $message['sender_name'] ?: $message['sender_agent_id'] }} → {{ $message['recipient_name'] ?: $message['recipient_agent_id'] }}</span>
+                                        </div>
+                                        <p>{{ $message['subject'] ?: $message['body'] }}</p>
+                                    </article>
+                                @empty
+                                    <p class="empty-state">No agent communication has been logged for this task yet.</p>
+                                @endforelse
+                            </div>
+                        </div>
+                    </div>
                 @else
                     <p class="empty-state">Select or create a task to inspect its details and payload JSON.</p>
                 @endif
@@ -517,8 +629,84 @@
                     </div>
                     <h4>Payload JSON</h4>
                     <pre class="payload-box">${escapeHtml(JSON.stringify(task.payload || {}, null, 2))}</pre>
+                    <div class="unified-sections">
+                        ${renderExecutions(task.executions || [])}
+                        ${renderArtifacts(task.artifacts || [])}
+                        ${renderAuditEvents(task.audit_events || [])}
+                        ${renderCommunications(task.communications || [])}
+                    </div>
                 `;
             };
+
+            const renderExecutions = (executions) => `
+                <div class="unified-section">
+                    <h4>Executions</h4>
+                    <div class="linked-list">
+                        ${executions.length ? executions.map((execution) => `
+                            <article class="linked-card">
+                                <div class="linked-head">
+                                    <span class="pill state-${escapeHtml(execution.status)}">${escapeHtml(execution.status)}</span>
+                                    <span class="pill">attempt ${escapeHtml(execution.attempt)}</span>
+                                    <span class="pill">${escapeHtml((execution.logs || []).length)} logs</span>
+                                </div>
+                                <p>${escapeHtml(execution.agent_name || execution.agent_id || 'Unassigned agent')}</p>
+                                ${execution.error_message ? `<pre class="payload-box">${escapeHtml(execution.error_message)}</pre>` : ''}
+                            </article>
+                        `).join('') : '<p class="empty-state">No executions are linked to this task yet.</p>'}
+                    </div>
+                </div>
+            `;
+
+            const renderArtifacts = (artifacts) => `
+                <div class="unified-section">
+                    <h4>Artifacts</h4>
+                    <div class="linked-list">
+                        ${artifacts.length ? artifacts.map((artifact) => `
+                            <article class="linked-card">
+                                <div class="linked-head">
+                                    <span class="pill">${escapeHtml(artifact.kind)}</span>
+                                    <span class="pill">${escapeHtml(artifact.name)}</span>
+                                </div>
+                                <p>${escapeHtml(artifact.content_text || JSON.stringify(artifact.content_json || artifact.file_metadata || {}))}</p>
+                            </article>
+                        `).join('') : '<p class="empty-state">No artifacts are linked to this task yet.</p>'}
+                    </div>
+                </div>
+            `;
+
+            const renderAuditEvents = (events) => `
+                <div class="unified-section">
+                    <h4>Audit events</h4>
+                    <div class="linked-list">
+                        ${events.length ? events.map((event) => `
+                            <article class="linked-card">
+                                <div class="linked-head">
+                                    <span class="pill">${escapeHtml(event.event_name)}</span>
+                                    <span class="pill">${escapeHtml(event.source || 'unknown source')}</span>
+                                </div>
+                                <p>${escapeHtml(event.actor_type || 'actor')}: ${escapeHtml(event.actor_id || 'unknown')}</p>
+                            </article>
+                        `).join('') : '<p class="empty-state">No audit events are linked to this task yet.</p>'}
+                    </div>
+                </div>
+            `;
+
+            const renderCommunications = (messages) => `
+                <div class="unified-section">
+                    <h4>Communication history</h4>
+                    <div class="linked-list">
+                        ${messages.length ? messages.map((message) => `
+                            <article class="linked-card">
+                                <div class="linked-head">
+                                    <span class="pill">${escapeHtml(message.message_type)}</span>
+                                    <span class="pill">${escapeHtml(message.sender_name || message.sender_agent_id)} → ${escapeHtml(message.recipient_name || message.recipient_agent_id)}</span>
+                                </div>
+                                <p>${escapeHtml(message.subject || message.body)}</p>
+                            </article>
+                        `).join('') : '<p class="empty-state">No agent communication has been logged for this task yet.</p>'}
+                    </div>
+                </div>
+            `;
 
             const upsertTask = (task) => {
                 const normalized = normalizeTask(task);
