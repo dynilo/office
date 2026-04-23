@@ -7,8 +7,10 @@ use App\Infrastructure\Persistence\Eloquent\Models\Agent;
 use App\Infrastructure\Persistence\Eloquent\Models\AgentCommunicationLog;
 use App\Infrastructure\Persistence\Eloquent\Models\Artifact;
 use App\Infrastructure\Persistence\Eloquent\Models\AuditEvent;
+use App\Infrastructure\Persistence\Eloquent\Models\Document;
 use App\Infrastructure\Persistence\Eloquent\Models\Execution;
 use App\Infrastructure\Persistence\Eloquent\Models\ExecutionLog;
+use App\Infrastructure\Persistence\Eloquent\Models\KnowledgeItem;
 use App\Infrastructure\Persistence\Eloquent\Models\ProviderUsageRecord;
 use App\Infrastructure\Persistence\Eloquent\Models\Task;
 use Illuminate\Contracts\View\View;
@@ -158,6 +160,35 @@ class AdminShellController extends Controller
         );
     }
 
+    public function documents(): View
+    {
+        $documents = Document::query()
+            ->with(['knowledgeItems' => fn ($query) => $query->orderBy('title')])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(100)
+            ->get()
+            ->map(fn (Document $document): array => $this->serializeDocument($document))
+            ->values()
+            ->all();
+
+        return $this->page(
+            page: 'documents',
+            title: 'Documents',
+            view: 'admin.documents',
+            bootstrap: [
+                'initialDocuments' => $documents,
+                'documentKnowledge' => [
+                    'ingest' => url('/api/documents/ingest'),
+                    'extractKnowledge' => url('/api/documents'),
+                ],
+            ],
+            data: [
+                'documents' => $documents,
+            ],
+        );
+    }
+
     public function audit(): View
     {
         return $this->page('audit', 'Audit');
@@ -211,6 +242,7 @@ class AdminShellController extends Controller
             ['key' => 'agents', 'label' => 'Agents', 'href' => route('admin.agents')],
             ['key' => 'tasks', 'label' => 'Tasks', 'href' => route('admin.tasks')],
             ['key' => 'executions', 'label' => 'Executions', 'href' => route('admin.executions')],
+            ['key' => 'documents', 'label' => 'Documents', 'href' => route('admin.documents')],
             ['key' => 'audit', 'label' => 'Audit', 'href' => route('admin.audit')],
         ]);
     }
@@ -432,6 +464,41 @@ class AdminShellController extends Controller
             'metadata' => $message->metadata ?? [],
             'sent_at' => $message->sent_at?->toIso8601String(),
             'created_at' => $message->created_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializeDocument(Document $document): array
+    {
+        return [
+            'id' => $document->id,
+            'title' => $document->title,
+            'mime_type' => $document->mime_type,
+            'storage_disk' => $document->storage_disk,
+            'storage_path' => $document->storage_path,
+            'checksum' => $document->checksum,
+            'size_bytes' => $document->size_bytes,
+            'raw_text' => $document->raw_text,
+            'metadata' => $document->metadata ?? [],
+            'ingested_at' => $document->ingested_at?->toIso8601String(),
+            'text_extracted_at' => $document->text_extracted_at?->toIso8601String(),
+            'created_at' => $document->created_at?->toIso8601String(),
+            'updated_at' => $document->updated_at?->toIso8601String(),
+            'knowledge_items' => $document->knowledgeItems
+                ->map(fn (KnowledgeItem $item): array => [
+                    'id' => $item->id,
+                    'document_id' => $item->document_id,
+                    'title' => $item->title,
+                    'content' => $item->content,
+                    'content_hash' => $item->content_hash,
+                    'metadata' => $item->metadata ?? [],
+                    'indexed_at' => $item->indexed_at?->toIso8601String(),
+                    'created_at' => $item->created_at?->toIso8601String(),
+                ])
+                ->values()
+                ->all(),
         ];
     }
 }
