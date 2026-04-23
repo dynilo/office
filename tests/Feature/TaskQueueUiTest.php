@@ -3,6 +3,7 @@
 use App\Domain\Tasks\Enums\TaskPriority;
 use App\Domain\Tasks\Enums\TaskStatus;
 use App\Infrastructure\Persistence\Eloquent\Models\Task;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -22,7 +23,7 @@ it('renders the task queue page with initial task data and inspection details', 
         ],
     ]);
 
-    $response = $this->get('/admin/tasks');
+    $response = $this->actingAs(User::factory()->create())->get('/admin/tasks');
 
     $response->assertOk()
         ->assertSee('Task queue active')
@@ -37,7 +38,7 @@ it('renders the task queue page with initial task data and inspection details', 
 });
 
 it('renders task create controls for draft and queued intake', function (): void {
-    $response = $this->get('/admin/tasks');
+    $response = $this->actingAs(User::factory()->create())->get('/admin/tasks');
 
     $response->assertOk()
         ->assertSee('Create task')
@@ -53,7 +54,7 @@ it('renders task create controls for draft and queued intake', function (): void
 });
 
 it('exposes task api integration bootstrap on the queue page', function (): void {
-    $response = $this->get('/admin/tasks');
+    $response = $this->actingAs(User::factory()->create())->get('/admin/tasks');
 
     $response->assertOk()
         ->assertSee('window.OfficeAdmin', false)

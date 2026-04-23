@@ -10,6 +10,7 @@ use App\Domain\Executions\Enums\ExecutionStatus;
 use App\Domain\Tasks\Enums\TaskStatus;
 use App\Infrastructure\Persistence\Eloquent\Models\Agent;
 use App\Infrastructure\Persistence\Eloquent\Models\Task;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 
@@ -96,7 +97,7 @@ it('keeps broadcast events disabled safely when the null transport is configured
 });
 
 it('exposes realtime shell bootstrap and fallback listener integration', function (): void {
-    $response = $this->get('/admin');
+    $response = $this->actingAs(User::factory()->create())->get('/admin');
 
     $response->assertOk()
         ->assertSee('realtime', false)
