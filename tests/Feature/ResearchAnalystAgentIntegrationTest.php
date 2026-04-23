@@ -9,6 +9,7 @@ use App\Domain\Executions\Enums\ExecutionStatus;
 use App\Domain\Tasks\Enums\TaskStatus;
 use App\Infrastructure\Persistence\Eloquent\Models\Agent;
 use App\Infrastructure\Persistence\Eloquent\Models\AgentProfile;
+use App\Infrastructure\Persistence\Eloquent\Models\Artifact;
 use App\Infrastructure\Persistence\Eloquent\Models\Execution;
 use App\Infrastructure\Persistence\Eloquent\Models\Task;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -65,6 +66,10 @@ it('runs one queued research task end to end', function (): void {
 
     $task->refresh();
     $execution = Execution::query()->where('task_id', $task->id)->first();
+    $artifacts = Artifact::query()
+        ->where('task_id', $task->id)
+        ->orderBy('name')
+        ->get();
 
     expect($task->status)->toBe(TaskStatus::Completed)
         ->and($task->agent_id)->toBe($agent->id)
@@ -73,7 +78,14 @@ it('runs one queued research task end to end', function (): void {
         ->and($execution?->output_payload['summary'] ?? null)->toBe('The market is led by a small set of enterprise-focused vendors.')
         ->and($execution?->provider_response['provider'] ?? null)->toBe('fake')
         ->and($execution?->provider_response['response_id'] ?? null)->toBe('resp_research_1')
-        ->and($execution?->logs)->toHaveCount(3);
+        ->and($execution?->logs)->toHaveCount(3)
+        ->and($artifacts)->toHaveCount(2)
+        ->and($artifacts[0]->name)->toBe('raw_response')
+        ->and($artifacts[0]->kind)->toBe('text')
+        ->and($artifacts[0]->execution_id)->toBe($execution?->id)
+        ->and($artifacts[1]->name)->toBe('structured_result')
+        ->and($artifacts[1]->kind)->toBe('json')
+        ->and($artifacts[1]->content_json['summary'] ?? null)->toBe('The market is led by a small set of enterprise-focused vendors.');
 });
 
 it('handles the provider failure path and updates states correctly', function (): void {

@@ -70,6 +70,11 @@ class Task extends Model
         return $this->hasMany(Execution::class);
     }
 
+    public function artifacts(): HasMany
+    {
+        return $this->hasMany(Artifact::class);
+    }
+
     public function dependencies(): BelongsToMany
     {
         return $this->belongsToMany(

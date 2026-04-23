@@ -6,6 +6,7 @@ use App\Domain\Tasks\Enums\TaskPriority;
 use App\Domain\Tasks\Enums\TaskStatus;
 use App\Infrastructure\Persistence\Eloquent\Models\Agent;
 use App\Infrastructure\Persistence\Eloquent\Models\AgentProfile;
+use App\Infrastructure\Persistence\Eloquent\Models\Artifact;
 use App\Infrastructure\Persistence\Eloquent\Models\Document;
 use App\Infrastructure\Persistence\Eloquent\Models\Execution;
 use App\Infrastructure\Persistence\Eloquent\Models\ExecutionLog;
@@ -21,7 +22,8 @@ uses(RefreshDatabase::class);
 it('loads the runtime schema through migrations', function (): void {
     expect(Schema::hasTable('agents'))->toBeTrue()
         ->and(Schema::hasTable('knowledge_items'))->toBeTrue()
-        ->and(Schema::hasTable('task_assignment_decisions'))->toBeTrue();
+        ->and(Schema::hasTable('task_assignment_decisions'))->toBeTrue()
+        ->and(Schema::hasTable('artifacts'))->toBeTrue();
 });
 
 it('creates the expected runtime tables and columns', function (): void {
@@ -64,6 +66,17 @@ it('creates the expected runtime tables and columns', function (): void {
             'provider_response',
             'failure_classification',
             'next_retry_at',
+        ]))->toBeTrue()
+        ->and(Schema::hasColumns('artifacts', [
+            'id',
+            'task_id',
+            'execution_id',
+            'kind',
+            'name',
+            'content_text',
+            'content_json',
+            'file_metadata',
+            'metadata',
         ]))->toBeTrue()
         ->and(Schema::hasColumns('task_assignment_decisions', [
             'task_id',
@@ -109,6 +122,7 @@ it('factories produce valid persisted records', function (): void {
         'status' => ExecutionStatus::Running,
     ]);
     $log = ExecutionLog::factory()->for($execution)->create();
+    $artifact = Artifact::factory()->for($task)->for($execution)->create();
     $document = Document::factory()->create();
     $knowledgeItem = KnowledgeItem::factory()->for($document)->create();
 
@@ -127,6 +141,8 @@ it('factories produce valid persisted records', function (): void {
         ->and($execution->retry_count)->not->toBeNull()
         ->and($execution->provider_response)->not->toBeNull()
         ->and($log->execution_id)->toBe($execution->id)
+        ->and($artifact->execution_id)->toBe($execution->id)
+        ->and($artifact->task_id)->toBe($task->id)
         ->and($knowledgeItem->document_id)->toBe($document->id);
 });
 
@@ -152,6 +168,7 @@ it('exposes coherent model relations', function (): void {
         ['sequence' => 1],
         ['sequence' => 2],
     )->create();
+    Artifact::factory()->count(2)->for($task)->for($execution)->create();
     $document = Document::factory()->create();
     KnowledgeItem::factory()->count(2)->for($document)->create();
 
@@ -163,6 +180,8 @@ it('exposes coherent model relations', function (): void {
         ->and($task->dependencies->first()?->is($dependencyTask))->toBeTrue()
         ->and($task->assignmentDecisions)->toHaveCount(1)
         ->and($task->executions)->toHaveCount(1)
+        ->and($task->artifacts)->toHaveCount(2)
         ->and($execution->logs)->toHaveCount(2)
+        ->and($execution->artifacts)->toHaveCount(2)
         ->and($document->knowledgeItems)->toHaveCount(2);
 });

@@ -72,6 +72,11 @@ class Execution extends Model
         return $this->hasMany(ExecutionLog::class);
     }
 
+    public function artifacts(): HasMany
+    {
+        return $this->hasMany(Artifact::class);
+    }
+
     public function retryOf(): BelongsTo
     {
         return $this->belongsTo(self::class, 'retry_of_execution_id');

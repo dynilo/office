@@ -3,6 +3,7 @@
 namespace App\Application\Tasks\Services;
 
 use App\Application\Agents\Services\ResearchAnalystAgent;
+use App\Application\Artifacts\Services\ArtifactPersistenceService;
 use App\Application\Executions\Services\ExecutionLifecycleService;
 use App\Application\Executions\Services\ExecutionRetryService;
 use App\Application\Providers\Exceptions\LlmProviderException;
@@ -19,6 +20,7 @@ final class RunQueuedResearchTaskService
         private readonly ExecutionLifecycleService $executions,
         private readonly ExecutionRetryService $retries,
         private readonly ResearchAnalystAgent $researchAgent,
+        private readonly ArtifactPersistenceService $artifacts,
         private readonly TaskLifecycleService $taskLifecycle,
     ) {
     }
@@ -55,7 +57,7 @@ final class RunQueuedResearchTaskService
         try {
             $result = $this->researchAgent->run($task, $task->agent);
 
-            $this->executions->markSucceeded(
+            $execution = $this->executions->markSucceeded(
                 executionId: $execution->id,
                 outputPayload: $result['structured_result'],
                 providerResponse: $result['raw_response'] + [
@@ -63,9 +65,37 @@ final class RunQueuedResearchTaskService
                 ],
             );
 
+            $this->artifacts->store(
+                task: $task,
+                execution: $execution,
+                kind: 'json',
+                name: 'structured_result',
+                contentJson: $result['structured_result'],
+                metadata: [
+                    'source' => 'research_analyst',
+                    'provider' => $result['raw_response']['provider'] ?? null,
+                    'response_id' => $result['raw_response']['response_id'] ?? null,
+                ],
+            );
+
+            $this->artifacts->store(
+                task: $task,
+                execution: $execution,
+                kind: 'text',
+                name: 'raw_response',
+                contentText: $result['raw_response']['content'] ?? null,
+                metadata: [
+                    'source' => 'research_analyst',
+                    'provider' => $result['raw_response']['provider'] ?? null,
+                    'response_id' => $result['raw_response']['response_id'] ?? null,
+                    'model' => $result['raw_response']['model'] ?? null,
+                    'finish_reason' => $result['raw_response']['finish_reason'] ?? null,
+                ],
+            );
+
             return $this->taskLifecycle->transition($task->fresh(['executions']), TaskStatus::Completed);
         } catch (LlmProviderException $exception) {
-            $decision = $this->retries->handleFailure($execution->id, $exception->getMessage(), $exception, [
+            $this->retries->handleFailure($execution->id, $exception->getMessage(), $exception, [
                 'provider' => $exception->provider,
                 'status_code' => $exception->statusCode,
                 'error_code' => $exception->errorCode,
