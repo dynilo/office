@@ -4,6 +4,7 @@ namespace App\Infrastructure\Persistence\Eloquent\Models;
 
 use App\Domain\Tasks\Enums\TaskPriority;
 use App\Domain\Tasks\Enums\TaskStatus;
+use App\Support\Tenancy\BelongsToOrganization;
 use Database\Factories\TaskFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,9 +15,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Task extends Model
 {
+    use BelongsToOrganization;
+
     /** @use HasFactory<TaskFactory> */
     use HasFactory;
-
     use HasUlids;
 
     public $incrementing = false;
@@ -24,6 +26,7 @@ class Task extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
+        'organization_id',
         'agent_id',
         'parent_task_id',
         'decomposition_index',

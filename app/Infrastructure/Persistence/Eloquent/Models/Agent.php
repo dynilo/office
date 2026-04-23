@@ -3,6 +3,7 @@
 namespace App\Infrastructure\Persistence\Eloquent\Models;
 
 use App\Domain\Agents\Enums\AgentStatus;
+use App\Support\Tenancy\BelongsToOrganization;
 use Database\Factories\AgentFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,9 +13,10 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Agent extends Model
 {
+    use BelongsToOrganization;
+
     /** @use HasFactory<AgentFactory> */
     use HasFactory;
-
     use HasUlids;
 
     public $incrementing = false;
@@ -22,6 +24,7 @@ class Agent extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
+        'organization_id',
         'code',
         'key',
         'name',

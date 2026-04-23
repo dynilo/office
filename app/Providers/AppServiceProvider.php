@@ -22,6 +22,7 @@ use App\Support\Database\PostgresqlProductionReadiness;
 use App\Support\Exceptions\InvalidStateException;
 use App\Support\Queue\RedisQueueProductionReadiness;
 use App\Support\Security\SecretRedactor;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -31,6 +32,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->singleton(TenantContext::class);
         $this->app->bind(AgentRepository::class, EloquentAgentRepository::class);
         $this->app->bind(ExecutionRepository::class, EloquentExecutionRepository::class);
         $this->app->bind(TaskRepository::class, EloquentTaskRepository::class);

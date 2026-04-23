@@ -2,12 +2,14 @@
 
 namespace App\Infrastructure\Persistence\Eloquent\Models;
 
+use App\Support\Tenancy\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TaskAssignmentDecision extends Model
 {
+    use BelongsToOrganization;
     use HasUlids;
 
     public $incrementing = false;
@@ -15,6 +17,7 @@ class TaskAssignmentDecision extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
+        'organization_id',
         'task_id',
         'agent_id',
         'outcome',

@@ -3,6 +3,7 @@
 namespace App\Infrastructure\Persistence\Eloquent\Models;
 
 use App\Domain\Executions\Enums\ExecutionStatus;
+use App\Support\Tenancy\BelongsToOrganization;
 use Database\Factories\ExecutionFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,9 +13,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Execution extends Model
 {
+    use BelongsToOrganization;
+
     /** @use HasFactory<ExecutionFactory> */
     use HasFactory;
-
     use HasUlids;
 
     public $incrementing = false;
@@ -22,6 +24,7 @@ class Execution extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
+        'organization_id',
         'task_id',
         'agent_id',
         'idempotency_key',

@@ -2,6 +2,7 @@
 
 namespace App\Infrastructure\Persistence\Eloquent\Models;
 
+use App\Support\Tenancy\BelongsToOrganization;
 use Database\Factories\ArtifactFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,6 +11,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Artifact extends Model
 {
+    use BelongsToOrganization;
+
     /** @use HasFactory<ArtifactFactory> */
     use HasFactory;
     use HasUlids;
@@ -19,6 +22,7 @@ class Artifact extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
+        'organization_id',
         'task_id',
         'execution_id',
         'kind',

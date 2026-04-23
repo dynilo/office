@@ -2,11 +2,13 @@
 
 namespace App\Infrastructure\Persistence\Eloquent\Models;
 
+use App\Support\Tenancy\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 
 class AuditEvent extends Model
 {
+    use BelongsToOrganization;
     use HasUlids;
 
     public $incrementing = false;
@@ -14,6 +16,7 @@ class AuditEvent extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
+        'organization_id',
         'event_name',
         'auditable_type',
         'auditable_id',

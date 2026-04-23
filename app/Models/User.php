@@ -5,6 +5,7 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -22,6 +23,7 @@ class User extends Authenticatable
     protected $keyType = 'string';
 
     protected $fillable = [
+        'current_organization_id',
         'name',
         'email',
         'password',
@@ -50,6 +52,28 @@ class User extends Authenticatable
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class)->withTimestamps();
+    }
+
+    public function currentOrganization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class, 'current_organization_id');
+    }
+
+    public function organizations(): BelongsToMany
+    {
+        return $this->belongsToMany(Organization::class)->withTimestamps();
+    }
+
+    public function joinOrganization(Organization $organization, bool $makeCurrent = false): void
+    {
+        $this->organizations()->syncWithoutDetaching([$organization->id]);
+
+        if ($makeCurrent) {
+            $this->forceFill(['current_organization_id' => $organization->id])->save();
+        }
+
+        $this->unsetRelation('organizations');
+        $this->unsetRelation('currentOrganization');
     }
 
     public function assignRole(Role|string $role): void

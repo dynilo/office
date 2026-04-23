@@ -2,6 +2,7 @@
 
 namespace App\Infrastructure\Persistence\Eloquent\Models;
 
+use App\Support\Tenancy\BelongsToOrganization;
 use Database\Factories\TaskDependencyFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,6 +11,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TaskDependency extends Model
 {
+    use BelongsToOrganization;
+
     /** @use HasFactory<TaskDependencyFactory> */
     use HasFactory;
     use HasUlids;
@@ -19,6 +22,7 @@ class TaskDependency extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
+        'organization_id',
         'task_id',
         'depends_on_task_id',
     ];
