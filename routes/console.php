@@ -7,6 +7,7 @@ use App\Support\Database\PgvectorRuntimeValidation;
 use App\Support\Database\PostgresqlRuntimeValidation;
 use App\Support\Observability\ObservabilityService;
 use App\Support\Redis\RedisRuntimeValidation;
+use App\Support\Workers\QueueProcessValidation;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Symfony\Component\Console\Command\Command;
@@ -76,3 +77,11 @@ Artisan::command('pgvector:validate-runtime', function (PgvectorRuntimeValidatio
 
     return $report['ready'] === true ? Command::SUCCESS : Command::FAILURE;
 })->purpose('Validate live pgvector runtime readiness for memory storage and similarity search.');
+
+Artisan::command('workers:validate-runtime', function (QueueProcessValidation $validation) {
+    $report = $validation->report();
+
+    $this->line(json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+    return $report['ready'] === true ? Command::SUCCESS : Command::FAILURE;
+})->purpose('Validate worker supervision and queue process expectations.');

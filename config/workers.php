@@ -30,4 +30,11 @@ return [
         'memory' => (int) env('WORKER_MEMORY_MB', 256),
         'stop_when_empty' => (bool) env('WORKER_STOP_WHEN_EMPTY', false),
     ],
+
+    'validation' => [
+        'supervisor_driver' => env('WORKER_SUPERVISION_DRIVER', 'none'),
+        'require_in_production' => env('WORKER_REQUIRE_SUPERVISION_IN_PRODUCTION', false),
+        'status_output_path' => env('WORKER_SUPERVISOR_STATUS_PATH'),
+        'process_snapshot_path' => env('WORKER_PROCESS_SNAPSHOT_PATH'),
+    ],
 ];
