@@ -114,14 +114,24 @@ it('handles the provider failure path and updates states correctly', function ()
         ->assertExitCode(1);
 
     $task->refresh();
-    $execution = Execution::query()->where('task_id', $task->id)->first();
+    $execution = Execution::query()->where('task_id', $task->id)->where('status', ExecutionStatus::Failed)->first();
+    $retryExecution = Execution::query()->where('task_id', $task->id)->where('status', ExecutionStatus::Pending)->first();
 
     expect($task->status)->toBe(TaskStatus::Failed)
         ->and($task->agent_id)->toBe($agent->id)
         ->and($execution)->not->toBeNull()
         ->and($execution?->status)->toBe(ExecutionStatus::Failed)
         ->and($execution?->error_message)->toBe('Provider unavailable.')
+        ->and($execution?->failure_classification)->toBe('transient_provider_failure')
         ->and($execution?->provider_response)->toBeNull()
-        ->and($execution?->logs->last()?->message)->toBe('execution.failed')
-        ->and($execution?->logs->last()?->context['error_code'] ?? null)->toBe('unavailable');
+        ->and($execution?->logs->pluck('message')->all())->toBe([
+            'execution.pending_created',
+            'execution.running',
+            'execution.failed',
+            'execution.retry_scheduled',
+        ])
+        ->and($retryExecution)->not->toBeNull()
+        ->and($retryExecution?->attempt)->toBe(2)
+        ->and($retryExecution?->retry_count)->toBe(1)
+        ->and($retryExecution?->retry_of_execution_id)->toBe($execution?->id);
 });

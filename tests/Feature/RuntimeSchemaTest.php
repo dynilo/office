@@ -54,11 +54,16 @@ it('creates the expected runtime tables and columns', function (): void {
             'task_id',
             'agent_id',
             'idempotency_key',
+            'retry_of_execution_id',
             'status',
             'attempt',
+            'retry_count',
+            'max_retries',
             'input_snapshot',
             'output_payload',
             'provider_response',
+            'failure_classification',
+            'next_retry_at',
         ]))->toBeTrue()
         ->and(Schema::hasColumns('task_assignment_decisions', [
             'task_id',
@@ -119,6 +124,7 @@ it('factories produce valid persisted records', function (): void {
         ->and($assignmentDecision->task_id)->toBe($task->id)
         ->and($execution->status)->toBe(ExecutionStatus::Running)
         ->and($execution->idempotency_key)->not->toBeNull()
+        ->and($execution->retry_count)->not->toBeNull()
         ->and($execution->provider_response)->not->toBeNull()
         ->and($log->execution_id)->toBe($execution->id)
         ->and($knowledgeItem->document_id)->toBe($document->id);

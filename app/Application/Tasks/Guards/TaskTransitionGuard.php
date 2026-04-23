@@ -62,9 +62,13 @@ final class TaskTransitionGuard
             throw new InvalidStateException('Task must be assigned before it can fail.');
         }
 
-        $latestExecution = $task->executions()->latest('created_at')->latest('id')->first();
+        $latestFailedExecution = $task->executions()
+            ->where('status', ExecutionStatus::Failed)
+            ->latest('created_at')
+            ->latest('id')
+            ->first();
 
-        if ($latestExecution === null || $latestExecution->status !== ExecutionStatus::Failed) {
+        if ($latestFailedExecution === null) {
             throw new InvalidStateException('Task requires a failed execution before it can fail.');
         }
     }

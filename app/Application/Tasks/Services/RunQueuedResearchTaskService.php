@@ -4,6 +4,7 @@ namespace App\Application\Tasks\Services;
 
 use App\Application\Agents\Services\ResearchAnalystAgent;
 use App\Application\Executions\Services\ExecutionLifecycleService;
+use App\Application\Executions\Services\ExecutionRetryService;
 use App\Application\Providers\Exceptions\LlmProviderException;
 use App\Domain\Tasks\Contracts\TaskRepository;
 use App\Domain\Tasks\Enums\TaskStatus;
@@ -16,6 +17,7 @@ final class RunQueuedResearchTaskService
         private readonly TaskRepository $tasks,
         private readonly AssignTaskService $assignment,
         private readonly ExecutionLifecycleService $executions,
+        private readonly ExecutionRetryService $retries,
         private readonly ResearchAnalystAgent $researchAgent,
         private readonly TaskLifecycleService $taskLifecycle,
     ) {
@@ -63,7 +65,7 @@ final class RunQueuedResearchTaskService
 
             return $this->taskLifecycle->transition($task->fresh(['executions']), TaskStatus::Completed);
         } catch (LlmProviderException $exception) {
-            $this->executions->markFailed($execution->id, $exception->getMessage(), [
+            $decision = $this->retries->handleFailure($execution->id, $exception->getMessage(), $exception, [
                 'provider' => $exception->provider,
                 'status_code' => $exception->statusCode,
                 'error_code' => $exception->errorCode,

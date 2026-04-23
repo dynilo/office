@@ -24,14 +24,19 @@ class Execution extends Model
         'task_id',
         'agent_id',
         'idempotency_key',
+        'retry_of_execution_id',
         'status',
         'attempt',
+        'retry_count',
+        'max_retries',
         'input_snapshot',
         'output_payload',
         'provider_response',
         'error_message',
+        'failure_classification',
         'started_at',
         'finished_at',
+        'next_retry_at',
     ];
 
     protected function casts(): array
@@ -39,11 +44,14 @@ class Execution extends Model
         return [
             'status' => ExecutionStatus::class,
             'attempt' => 'integer',
+            'retry_count' => 'integer',
+            'max_retries' => 'integer',
             'input_snapshot' => 'array',
             'output_payload' => 'array',
             'provider_response' => 'array',
             'started_at' => 'immutable_datetime',
             'finished_at' => 'immutable_datetime',
+            'next_retry_at' => 'immutable_datetime',
             'created_at' => 'immutable_datetime',
             'updated_at' => 'immutable_datetime',
         ];
@@ -62,6 +70,16 @@ class Execution extends Model
     public function logs(): HasMany
     {
         return $this->hasMany(ExecutionLog::class);
+    }
+
+    public function retryOf(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'retry_of_execution_id');
+    }
+
+    public function retries(): HasMany
+    {
+        return $this->hasMany(self::class, 'retry_of_execution_id');
     }
 
     protected static function newFactory(): ExecutionFactory

@@ -44,6 +44,8 @@ final class ExecutionLifecycleService
             'idempotency_key' => $idempotencyKey,
             'status' => ExecutionStatus::Pending,
             'attempt' => 1,
+            'retry_count' => 0,
+            'max_retries' => (int) config('executions.retry.max_retries', 2),
             'input_snapshot' => [
                 'task' => [
                     'title' => $task->title,
@@ -100,14 +102,22 @@ final class ExecutionLifecycleService
         return $execution->refresh()->load('logs');
     }
 
-    public function markFailed(string $executionId, string $errorMessage, array $context = []): Execution
+    public function markFailed(
+        string $executionId,
+        string $errorMessage,
+        array $context = [],
+        ?string $failureClassification = null,
+        mixed $nextRetryAt = null,
+    ): Execution
     {
         $execution = $this->getExecution($executionId);
         $this->guard->assertCanTransition($execution->status, ExecutionStatus::Failed);
 
         $execution->status = ExecutionStatus::Failed;
         $execution->error_message = $errorMessage;
+        $execution->failure_classification = $failureClassification;
         $execution->finished_at = now();
+        $execution->next_retry_at = $nextRetryAt;
         $execution = $this->executions->save($execution);
 
         $this->logs->write($execution, 'error', 'execution.failed', [
