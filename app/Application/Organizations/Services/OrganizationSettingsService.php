@@ -116,6 +116,13 @@ final class OrganizationSettingsService
                 'max_retries' => (int) config('executions.retry.max_retries', 2),
                 'backoff_seconds' => array_values((array) config('executions.retry.backoff_seconds', [60, 300, 900])),
             ],
+            'sla' => [
+                'pending_expiration_seconds' => (int) config('executions.sla.pending_expiration_seconds', 900),
+                'running_timeout_seconds' => (int) config('executions.sla.running_timeout_seconds', 1800),
+            ],
+            'dead_letter' => [
+                'capture_enabled' => (bool) config('executions.dead_letter.capture_enabled', true),
+            ],
             'prompts' => [
                 'version' => (string) config('prompts.default.version', '2026-04-23.v1'),
                 'schema_version' => (string) config('prompts.default.schema_version', '1'),

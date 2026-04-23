@@ -10,7 +10,7 @@ final class ExecutionTransitionGuard
     public function assertCanTransition(ExecutionStatus $from, ExecutionStatus $to): void
     {
         $valid = match ($from) {
-            ExecutionStatus::Pending => in_array($to, [ExecutionStatus::Running], true),
+            ExecutionStatus::Pending => in_array($to, [ExecutionStatus::Running, ExecutionStatus::Failed], true),
             ExecutionStatus::Running => in_array($to, [ExecutionStatus::Succeeded, ExecutionStatus::Failed], true),
             ExecutionStatus::Succeeded, ExecutionStatus::Failed, ExecutionStatus::Cancelled => false,
         };

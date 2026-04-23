@@ -17,8 +17,8 @@ final class ExecutionRetryService
         private readonly ExecutionLifecycleService $lifecycle,
         private readonly ExecutionLogWriter $logs,
         private readonly ExecutionRetryPolicyService $policy,
-    ) {
-    }
+        private readonly DeadLetterService $deadLetters,
+    ) {}
 
     public function handleFailure(string $executionId, string $errorMessage, ?Throwable $throwable = null, array $context = []): ExecutionRetryDecisionData
     {
@@ -43,6 +43,22 @@ final class ExecutionRetryService
         );
 
         if (! $decision->shouldRetry) {
+            $this->deadLetters->captureForExecution(
+                execution: $failed,
+                reasonCode: $decision->classification,
+                errorMessage: $errorMessage,
+                payload: [
+                    ...$context,
+                    'retry_count' => $decision->retryCount,
+                    'next_attempt' => $decision->nextAttempt,
+                    'retry_exhausted' => $failed->retry_count >= $failed->max_retries,
+                ],
+            );
+
+            $this->logs->write($failed, 'warning', 'execution.dead_lettered', [
+                'reason_code' => $decision->classification,
+            ]);
+
             return $decision;
         }
 

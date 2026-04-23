@@ -73,6 +73,11 @@ class Agent extends Model
         return $this->hasMany(ApprovalRequest::class);
     }
 
+    public function deadLetters(): HasMany
+    {
+        return $this->hasMany(DeadLetterRecord::class);
+    }
+
     public function providerUsageRecords(): HasMany
     {
         return $this->hasMany(ProviderUsageRecord::class);

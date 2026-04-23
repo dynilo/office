@@ -17,6 +17,7 @@ class Execution extends Model
 
     /** @use HasFactory<ExecutionFactory> */
     use HasFactory;
+
     use HasUlids;
 
     public $incrementing = false;
@@ -79,6 +80,11 @@ class Execution extends Model
     public function artifacts(): HasMany
     {
         return $this->hasMany(Artifact::class);
+    }
+
+    public function deadLetters(): HasMany
+    {
+        return $this->hasMany(DeadLetterRecord::class);
     }
 
     public function providerUsageRecords(): HasMany

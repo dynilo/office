@@ -220,7 +220,7 @@ final class ExecutionLifecycleService
             actor: new AuditActorData('agent', $execution->agent_id),
             source: 'execution_lifecycle',
             metadata: [
-                'from' => ExecutionStatus::Running->value,
+                'from' => $from->value,
                 'to' => ExecutionStatus::Failed->value,
                 'error' => $errorMessage,
                 'failure_classification' => $failureClassification,

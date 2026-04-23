@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Infrastructure\Persistence\Eloquent\Models\Agent;
+use App\Infrastructure\Persistence\Eloquent\Models\DeadLetterRecord;
 use App\Infrastructure\Persistence\Eloquent\Models\Document;
 use App\Infrastructure\Persistence\Eloquent\Models\Task;
 use Database\Factories\OrganizationFactory;
@@ -58,6 +59,11 @@ class Organization extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(Document::class);
+    }
+
+    public function deadLetters(): HasMany
+    {
+        return $this->hasMany(DeadLetterRecord::class);
     }
 
     public function settings(): HasOne
