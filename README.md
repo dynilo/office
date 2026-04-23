@@ -39,3 +39,12 @@ The repository includes a GitHub Actions workflow at `.github/workflows/ci.yml` 
 ## Deployment Baseline
 
 Minimal deploy-readiness guidance lives in `docs/DEPLOYMENT_BASELINE.md`. It documents the production assumptions and the release sequence without introducing hosting-specific infrastructure.
+
+## Backup And Restore Baseline
+
+Backup and restore guidance lives in `docs/BACKUP_RESTORE_BASELINE.md`. The repository also exposes:
+
+- `php artisan backup:manifest`
+- `php artisan restore:manifest`
+
+These commands print the current backup and restore plan derived from the active application configuration.

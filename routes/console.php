@@ -2,6 +2,7 @@
 
 use App\Application\Providers\Exceptions\LlmProviderException;
 use App\Application\Tasks\Services\RunQueuedResearchTaskService;
+use App\Support\Backup\BackupBaselineService;
 use App\Support\Observability\ObservabilityService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -36,3 +37,15 @@ Artisan::command('observability:diagnose', function (ObservabilityService $obser
 
     return Command::SUCCESS;
 })->purpose('Show the current observability configuration diagnostics.');
+
+Artisan::command('backup:manifest', function (BackupBaselineService $backup) {
+    $this->line(json_encode($backup->backupPlan(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+    return Command::SUCCESS;
+})->purpose('Show the configured backup baseline plan.');
+
+Artisan::command('restore:manifest', function (BackupBaselineService $backup) {
+    $this->line(json_encode($backup->restorePlan(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+    return Command::SUCCESS;
+})->purpose('Show the configured restore baseline plan.');
