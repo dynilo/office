@@ -6,6 +6,7 @@ use App\Application\Providers\Contracts\LlmProvider;
 use App\Application\Providers\Data\LlmRequestData;
 use App\Application\Providers\Data\LlmResponseData;
 use App\Application\Providers\Exceptions\LlmProviderException;
+use App\Support\Security\SecretRedactor;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
@@ -18,8 +19,8 @@ final class OpenAiCompatibleProvider implements LlmProvider
 {
     public function __construct(
         private readonly array $config,
-    ) {
-    }
+        private readonly SecretRedactor $redactor,
+    ) {}
 
     public function generate(LlmRequestData $request): LlmResponseData
     {
@@ -176,8 +177,8 @@ final class OpenAiCompatibleProvider implements LlmProvider
         Log::info('llm.provider.request', [
             'provider' => 'openai_compatible',
             'endpoint' => '/chat/completions',
-            'base_url' => $this->config['base_url'],
-            'headers' => $this->redactHeaders($headers),
+            'base_url' => $this->redactor->redactString($this->config['base_url']),
+            'headers' => $this->redactor->redactArray($headers),
             'payload' => [
                 'model' => $payload['model'],
                 'temperature' => $payload['temperature'] ?? null,
@@ -213,20 +214,7 @@ final class OpenAiCompatibleProvider implements LlmProvider
             'provider' => 'openai_compatible',
             'status_code' => $statusCode,
             'error_code' => $errorCode,
-            'context' => $context,
+            'context' => $this->redactor->redactArray($context),
         ]);
-    }
-
-    private function redactHeaders(array $headers): array
-    {
-        return collect($headers)
-            ->mapWithKeys(static function (string $value, string $key): array {
-                if (in_array(strtolower($key), ['authorization', 'openai-organization', 'openai-project'], true)) {
-                    return [$key => '[REDACTED]'];
-                }
-
-                return [$key => $value];
-            })
-            ->all();
     }
 }

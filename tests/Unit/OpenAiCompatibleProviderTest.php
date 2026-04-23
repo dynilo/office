@@ -4,6 +4,7 @@ use App\Application\Providers\Contracts\LlmProvider;
 use App\Application\Providers\Data\LlmMessageData;
 use App\Application\Providers\Data\LlmRequestData;
 use App\Application\Providers\Exceptions\LlmProviderException;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -59,7 +60,7 @@ it('sends normalized requests through a single provider interface', function ():
         ->and($response->inputTokens)->toBe(12)
         ->and($response->outputTokens)->toBe(8);
 
-    Http::assertSent(function (\Illuminate\Http\Client\Request $request): bool {
+    Http::assertSent(function (Request $request): bool {
         return $request->url() === 'https://api.openai.com/v1/chat/completions'
             && $request->hasHeader('Authorization', 'Bearer secret-test-key')
             && $request->hasHeader('X-Client-Request-Id', 'client-request-1')
@@ -156,11 +157,32 @@ it('never logs secrets', function (): void {
     Log::shouldHaveReceived('info')
         ->with(
             'llm.provider.request',
-            \Mockery::on(static function (array $context): bool {
+            Mockery::on(static function (array $context): bool {
                 return ($context['headers']['Authorization'] ?? null) === '[REDACTED]'
             && ($context['headers']['OpenAI-Organization'] ?? null) === '[REDACTED]'
             && ($context['headers']['OpenAI-Project'] ?? null) === '[REDACTED]'
             && ! str_contains(json_encode($context, JSON_THROW_ON_ERROR), 'secret-test-key');
+            }),
+        )
+        ->once();
+});
+
+it('redacts secrets from provider failure logs', function (): void {
+    Log::spy();
+    Http::fake(function (): void {
+        throw new RuntimeException('Transport failed with secret-test-key in diagnostic output.');
+    });
+
+    expect(fn () => app(LlmProvider::class)->generate(new LlmRequestData(
+        messages: [new LlmMessageData('user', 'Trigger failure')],
+    )))->toThrow(LlmProviderException::class);
+
+    Log::shouldHaveReceived('warning')
+        ->with(
+            'llm.provider.failure',
+            Mockery::on(static function (array $context): bool {
+                return ! str_contains(json_encode($context, JSON_THROW_ON_ERROR), 'secret-test-key')
+                    && str_contains(json_encode($context, JSON_THROW_ON_ERROR), '[REDACTED]');
             }),
         )
         ->once();

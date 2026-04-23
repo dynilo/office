@@ -5,17 +5,18 @@ namespace App\Providers;
 use App\Application\Documents\Services\DocumentParserRegistry;
 use App\Application\Memory\Contracts\EmbeddingGenerator;
 use App\Application\Memory\Contracts\KnowledgeSimilaritySearch;
+use App\Application\Providers\Contracts\LlmProvider;
 use App\Domain\Agents\Contracts\AgentRepository;
 use App\Domain\Executions\Contracts\ExecutionRepository;
 use App\Domain\Tasks\Contracts\TaskRepository;
-use App\Application\Providers\Contracts\LlmProvider;
 use App\Infrastructure\Documents\Parsers\PlainTextDocumentParser;
 use App\Infrastructure\Memory\NullEmbeddingGenerator;
-use App\Infrastructure\Persistence\Eloquent\Repositories\PgvectorKnowledgeSimilaritySearch;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentAgentRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentExecutionRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentTaskRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\PgvectorKnowledgeSimilaritySearch;
 use App\Infrastructure\Providers\OpenAiCompatibleProvider;
+use App\Support\Security\SecretRedactor;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -36,7 +37,10 @@ class AppServiceProvider extends ServiceProvider
             ]);
         });
         $this->app->bind(LlmProvider::class, function ($app): LlmProvider {
-            return new OpenAiCompatibleProvider(config('providers.openai_compatible'));
+            return new OpenAiCompatibleProvider(
+                config('providers.openai_compatible'),
+                $app->make(SecretRedactor::class),
+            );
         });
     }
 
