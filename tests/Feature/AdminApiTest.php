@@ -4,7 +4,9 @@ use App\Domain\Agents\Enums\AgentStatus;
 use App\Domain\Executions\Enums\ExecutionStatus;
 use App\Domain\Tasks\Enums\TaskStatus;
 use App\Infrastructure\Persistence\Eloquent\Models\Agent;
+use App\Infrastructure\Persistence\Eloquent\Models\ApprovalRequest;
 use App\Infrastructure\Persistence\Eloquent\Models\AuditEvent;
+use App\Infrastructure\Persistence\Eloquent\Models\DeadLetterRecord;
 use App\Infrastructure\Persistence\Eloquent\Models\Execution;
 use App\Infrastructure\Persistence\Eloquent\Models\ProviderUsageRecord;
 use App\Infrastructure\Persistence\Eloquent\Models\Task;
@@ -32,7 +34,7 @@ it('returns admin summary data', function (): void {
         'agent_id' => $inactiveAgent->id,
         'status' => TaskStatus::Completed,
     ]);
-    Execution::factory()->create([
+    $pendingExecution = Execution::factory()->create([
         'task_id' => $queuedTask->id,
         'agent_id' => $activeAgent->id,
         'status' => ExecutionStatus::Pending,
@@ -60,6 +62,12 @@ it('returns admin summary data', function (): void {
         'metadata' => ['ok' => true],
         'occurred_at' => now(),
     ]);
+    DeadLetterRecord::factory()
+        ->for($queuedTask, 'task')
+        ->for($activeAgent)
+        ->for($pendingExecution, 'execution')
+        ->create();
+    ApprovalRequest::factory()->for($queuedTask, 'task')->for($activeAgent)->create();
 
     $this->getJson('/api/admin/summary')
         ->assertOk()
@@ -72,7 +80,12 @@ it('returns admin summary data', function (): void {
         ->assertJsonPath('data.audit.total', 1)
         ->assertJsonPath('data.costs.total_tokens', 1234)
         ->assertJsonPath('data.costs.estimated_cost_micros', 5678)
-        ->assertJsonPath('data.costs.currency', 'USD');
+        ->assertJsonPath('data.costs.currency', 'USD')
+        ->assertJsonPath('data.attention.failed_executions', 0)
+        ->assertJsonPath('data.attention.dead_letters', 1)
+        ->assertJsonPath('data.attention.pending_approvals', 1)
+        ->assertJsonPath('data.attention.unassigned_queued_tasks', 0)
+        ->assertJsonPath('data.attention.open_issues_total', 2);
 });
 
 it('lists agents with filtering pagination and sorting', function (): void {

@@ -4,6 +4,8 @@ use App\Domain\Agents\Enums\AgentStatus;
 use App\Domain\Executions\Enums\ExecutionStatus;
 use App\Domain\Tasks\Enums\TaskStatus;
 use App\Infrastructure\Persistence\Eloquent\Models\Agent;
+use App\Infrastructure\Persistence\Eloquent\Models\ApprovalRequest;
+use App\Infrastructure\Persistence\Eloquent\Models\DeadLetterRecord;
 use App\Infrastructure\Persistence\Eloquent\Models\Execution;
 use App\Infrastructure\Persistence\Eloquent\Models\ProviderUsageRecord;
 use App\Infrastructure\Persistence\Eloquent\Models\Task;
@@ -32,11 +34,16 @@ it('renders the admin dashboard shell', function (): void {
     $execution = Execution::factory()->for($agent)->for($completedTask)->create([
         'status' => ExecutionStatus::Succeeded,
     ]);
+    $failedExecution = Execution::factory()->for($agent)->for($queuedTask)->create([
+        'status' => ExecutionStatus::Failed,
+    ]);
     ProviderUsageRecord::factory()->for($agent)->for($completedTask, 'task')->for($execution)->create([
         'total_tokens' => 1500,
         'estimated_cost_micros' => 2500,
         'currency' => 'USD',
     ]);
+    DeadLetterRecord::factory()->for($queuedTask, 'task')->for($agent)->for($failedExecution, 'execution')->create();
+    ApprovalRequest::factory()->for($queuedTask, 'task')->for($agent)->create();
 
     $response = $this->actingAs($user)->get('/admin');
 
@@ -48,6 +55,12 @@ it('renders the admin dashboard shell', function (): void {
         ->assertSee('Queued tasks')
         ->assertSee('Execution success')
         ->assertSee('Estimated provider cost')
+        ->assertSee('Operator attention')
+        ->assertSee('Failed executions')
+        ->assertSee('Dead letters')
+        ->assertSee('Pending approvals')
+        ->assertSee('Unassigned queued tasks')
+        ->assertSee('Runtime recency')
         ->assertSee('Map market signal shifts')
         ->assertSee('Summarize customer notes')
         ->assertSee('USD 0.0025')
@@ -55,7 +68,8 @@ it('renders the admin dashboard shell', function (): void {
         ->assertSee('window.OfficeDashboard', false)
         ->assertSee('initialSummary', false)
         ->assertSee($queuedTask->id)
-        ->assertSee('\/api\/admin\/summary', false);
+        ->assertSee('\/api\/admin\/summary', false)
+        ->assertSee('\/api\/admin\/audit-events', false);
 });
 
 it('renders scaffolded admin pages with stable navigation', function (): void {

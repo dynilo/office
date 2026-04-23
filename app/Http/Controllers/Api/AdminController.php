@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Application\Approvals\Enums\ApprovalStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\AdminAuditEventResource;
 use App\Http\Resources\AdminExecutionResource;
 use App\Http\Resources\AgentResource;
 use App\Http\Resources\TaskResource;
 use App\Infrastructure\Persistence\Eloquent\Models\Agent;
+use App\Infrastructure\Persistence\Eloquent\Models\ApprovalRequest;
 use App\Infrastructure\Persistence\Eloquent\Models\AuditEvent;
+use App\Infrastructure\Persistence\Eloquent\Models\DeadLetterRecord;
 use App\Infrastructure\Persistence\Eloquent\Models\Execution;
 use App\Infrastructure\Persistence\Eloquent\Models\ProviderUsageRecord;
 use App\Infrastructure\Persistence\Eloquent\Models\Task;
@@ -21,6 +24,16 @@ class AdminController extends Controller
 {
     public function summary(): JsonResponse
     {
+        $failedExecutions = Execution::query()->where('status', 'failed')->count();
+        $deadLetters = DeadLetterRecord::query()->count();
+        $pendingApprovals = ApprovalRequest::query()
+            ->where('status', ApprovalStatus::Pending->value)
+            ->count();
+        $unassignedQueuedTasks = Task::query()
+            ->where('status', 'queued')
+            ->whereNull('agent_id')
+            ->count();
+
         return response()->json([
             'data' => [
                 'agents' => [
@@ -50,6 +63,18 @@ class AdminController extends Controller
                     'total_tokens' => (int) ProviderUsageRecord::query()->sum('total_tokens'),
                     'estimated_cost_micros' => (int) ProviderUsageRecord::query()->sum('estimated_cost_micros'),
                     'currency' => (string) config('costs.currency', 'USD'),
+                ],
+                'operations' => [
+                    'latest_task_at' => Task::query()->max('created_at'),
+                    'latest_execution_at' => Execution::query()->max('created_at'),
+                    'latest_audit_event_at' => AuditEvent::query()->max('occurred_at'),
+                ],
+                'attention' => [
+                    'failed_executions' => $failedExecutions,
+                    'dead_letters' => $deadLetters,
+                    'pending_approvals' => $pendingApprovals,
+                    'unassigned_queued_tasks' => $unassignedQueuedTasks,
+                    'open_issues_total' => $failedExecutions + $deadLetters + $pendingApprovals + $unassignedQueuedTasks,
                 ],
             ],
         ]);

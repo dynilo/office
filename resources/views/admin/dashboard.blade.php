@@ -184,16 +184,52 @@
             line-height: 1.55;
         }
 
+        .attention-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .attention-card {
+            display: grid;
+            gap: 0.65rem;
+            padding: 1rem 1.1rem;
+            border: 1px solid rgba(20, 33, 61, 0.08);
+            border-radius: 1.15rem;
+            background: rgba(255, 253, 247, 0.78);
+            box-shadow: 0 14px 34px rgba(20, 33, 61, 0.05);
+        }
+
+        .attention-card strong {
+            font-size: 1.85rem;
+            line-height: 1;
+        }
+
+        .attention-card p {
+            margin: 0;
+            color: var(--ink-soft);
+            line-height: 1.45;
+        }
+
+        .attention-card a {
+            color: var(--accent);
+            font-weight: 700;
+            text-decoration: none;
+        }
+
         @media (max-width: 1150px) {
             .dashboard-grid,
-            .dashboard-layout {
+            .dashboard-layout,
+            .attention-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
         }
 
         @media (max-width: 760px) {
             .dashboard-grid,
-            .dashboard-layout {
+            .dashboard-layout,
+            .attention-grid {
                 grid-template-columns: 1fr;
             }
 
@@ -249,6 +285,73 @@
             <strong id="metric-provider-cost">{{ $formatCost($summary['costs']['estimated_cost_micros'], $summary['costs']['currency']) }}</strong>
             <p>{{ $formatNumber($summary['costs']['total_tokens']) }} tracked provider tokens.</p>
         </article>
+    </section>
+
+    <section class="dashboard-layout" aria-label="Operational attention and runtime recency">
+        <div class="dashboard-panel">
+            <span class="panel-kicker">Attention queue</span>
+            <h3>Operator attention</h3>
+            <div class="attention-grid">
+                <article class="attention-card">
+                    <span class="panel-kicker">Failed executions</span>
+                    <strong>{{ $formatNumber($summary['attention']['failed_executions']) }}</strong>
+                    <p>Execution failures that need triage or retry review.</p>
+                    <a href="{{ route('admin.executions') }}">Open execution monitor</a>
+                </article>
+
+                <article class="attention-card">
+                    <span class="panel-kicker">Dead letters</span>
+                    <strong>{{ $formatNumber($summary['attention']['dead_letters']) }}</strong>
+                    <p>Terminal runtime records that escaped normal recovery.</p>
+                    <a href="{{ route('admin.audit') }}">Review audit and failures</a>
+                </article>
+
+                <article class="attention-card">
+                    <span class="panel-kicker">Pending approvals</span>
+                    <strong>{{ $formatNumber($summary['attention']['pending_approvals']) }}</strong>
+                    <p>Approval-gated runtime work that is waiting on a decision.</p>
+                    <a href="{{ route('admin.executions') }}">Inspect blocked executions</a>
+                </article>
+
+                <article class="attention-card">
+                    <span class="panel-kicker">Unassigned queued tasks</span>
+                    <strong>{{ $formatNumber($summary['attention']['unassigned_queued_tasks']) }}</strong>
+                    <p>Queued intake that is still waiting for an agent assignment.</p>
+                    <a href="{{ route('admin.tasks') }}">Review task queue</a>
+                </article>
+            </div>
+        </div>
+
+        <div class="dashboard-panel">
+            <span class="panel-kicker">Runtime recency</span>
+            <h3>Last known activity</h3>
+            <div class="status-bars">
+                <div class="bar-row">
+                    <div class="bar-label">
+                        <span>Latest task intake</span>
+                        <strong>{{ $summary['operations']['latest_task_at'] ?: 'None yet' }}</strong>
+                    </div>
+                </div>
+                <div class="bar-row">
+                    <div class="bar-label">
+                        <span>Latest execution event</span>
+                        <strong>{{ $summary['operations']['latest_execution_at'] ?: 'None yet' }}</strong>
+                    </div>
+                </div>
+                <div class="bar-row">
+                    <div class="bar-label">
+                        <span>Latest audit event</span>
+                        <strong>{{ $summary['operations']['latest_audit_event_at'] ?: 'None yet' }}</strong>
+                    </div>
+                </div>
+                <div class="bar-row">
+                    <div class="bar-label">
+                        <span>Open runtime issues</span>
+                        <strong>{{ $formatNumber($summary['attention']['open_issues_total']) }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
     </section>
 
     <section class="dashboard-layout" aria-label="Runtime distributions and recent activity">
@@ -356,6 +459,7 @@
                 summaryEndpoint: dashboard.summary,
                 tasksEndpoint: dashboard.tasks,
                 executionsEndpoint: dashboard.executions,
+                auditEventsEndpoint: dashboard.auditEvents,
                 refreshIntervalMs: dashboard.refreshIntervalMs || 30000,
                 initialSummary: bootstrap.initialSummary || {},
                 recentTasks: bootstrap.recentTasks || [],

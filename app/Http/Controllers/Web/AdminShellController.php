@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web;
 
 use App\Application\Agents\Services\CoordinatorAgent;
+use App\Application\Approvals\Enums\ApprovalStatus;
 use App\Application\Communications\Services\AgentCommunicationQueryService;
 use App\Application\CompanyLoop\Data\CompanyLoopReportData;
 use App\Application\CompanyLoop\Services\CompanyLoopService;
@@ -10,8 +11,10 @@ use App\Domain\Agents\Enums\AgentStatus;
 use App\Http\Controllers\Controller;
 use App\Infrastructure\Persistence\Eloquent\Models\Agent;
 use App\Infrastructure\Persistence\Eloquent\Models\AgentCommunicationLog;
+use App\Infrastructure\Persistence\Eloquent\Models\ApprovalRequest;
 use App\Infrastructure\Persistence\Eloquent\Models\Artifact;
 use App\Infrastructure\Persistence\Eloquent\Models\AuditEvent;
+use App\Infrastructure\Persistence\Eloquent\Models\DeadLetterRecord;
 use App\Infrastructure\Persistence\Eloquent\Models\Document;
 use App\Infrastructure\Persistence\Eloquent\Models\Execution;
 use App\Infrastructure\Persistence\Eloquent\Models\ExecutionLog;
@@ -59,6 +62,7 @@ class AdminShellController extends Controller
                     'summary' => route('api.admin.summary'),
                     'tasks' => route('api.admin.tasks'),
                     'executions' => route('api.admin.executions'),
+                    'auditEvents' => route('api.admin.audit-events'),
                     'refreshIntervalMs' => 30000,
                 ],
             ],
@@ -471,6 +475,18 @@ class AdminShellController extends Controller
         $completedTasks = Task::query()->where('status', 'completed')->count();
         $totalExecutions = Execution::query()->count();
         $succeededExecutions = Execution::query()->where('status', 'succeeded')->count();
+        $latestAuditEventAt = AuditEvent::query()->max('occurred_at');
+        $latestTaskAt = Task::query()->max('created_at');
+        $latestExecutionAt = Execution::query()->max('created_at');
+        $failedExecutions = Execution::query()->where('status', 'failed')->count();
+        $deadLetters = DeadLetterRecord::query()->count();
+        $pendingApprovals = ApprovalRequest::query()
+            ->where('status', ApprovalStatus::Pending->value)
+            ->count();
+        $unassignedQueuedTasks = Task::query()
+            ->where('status', 'queued')
+            ->whereNull('agent_id')
+            ->count();
 
         return [
             'agents' => [
@@ -500,7 +516,36 @@ class AdminShellController extends Controller
                 'estimated_cost_micros' => (int) ProviderUsageRecord::query()->sum('estimated_cost_micros'),
                 'currency' => (string) config('costs.currency', 'USD'),
             ],
+            'operations' => [
+                'latest_task_at' => $this->serializeTimestamp($latestTaskAt),
+                'latest_execution_at' => $this->serializeTimestamp($latestExecutionAt),
+                'latest_audit_event_at' => $this->serializeTimestamp($latestAuditEventAt),
+            ],
+            'attention' => [
+                'failed_executions' => $failedExecutions,
+                'dead_letters' => $deadLetters,
+                'pending_approvals' => $pendingApprovals,
+                'unassigned_queued_tasks' => $unassignedQueuedTasks,
+                'open_issues_total' => $failedExecutions + $deadLetters + $pendingApprovals + $unassignedQueuedTasks,
+            ],
         ];
+    }
+
+    private function serializeTimestamp(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_string($value)) {
+            return $value;
+        }
+
+        if (method_exists($value, 'toIso8601String')) {
+            return $value->toIso8601String();
+        }
+
+        return (string) $value;
     }
 
     /**
