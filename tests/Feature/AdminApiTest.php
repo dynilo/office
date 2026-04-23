@@ -6,6 +6,7 @@ use App\Domain\Tasks\Enums\TaskStatus;
 use App\Infrastructure\Persistence\Eloquent\Models\Agent;
 use App\Infrastructure\Persistence\Eloquent\Models\AuditEvent;
 use App\Infrastructure\Persistence\Eloquent\Models\Execution;
+use App\Infrastructure\Persistence\Eloquent\Models\ProviderUsageRecord;
 use App\Infrastructure\Persistence\Eloquent\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -32,10 +33,18 @@ it('returns admin summary data', function (): void {
         'agent_id' => $activeAgent->id,
         'status' => ExecutionStatus::Pending,
     ]);
-    Execution::factory()->create([
+    $succeededExecution = Execution::factory()->create([
         'task_id' => $completedTask->id,
         'agent_id' => $inactiveAgent->id,
         'status' => ExecutionStatus::Succeeded,
+    ]);
+    ProviderUsageRecord::factory()->create([
+        'execution_id' => $succeededExecution->id,
+        'task_id' => $completedTask->id,
+        'agent_id' => $inactiveAgent->id,
+        'total_tokens' => 1234,
+        'estimated_cost_micros' => 5678,
+        'currency' => 'USD',
     ]);
     AuditEvent::query()->create([
         'event_name' => 'task.created',
@@ -56,7 +65,10 @@ it('returns admin summary data', function (): void {
         ->assertJsonPath('data.tasks.queued', 1)
         ->assertJsonPath('data.executions.total', 2)
         ->assertJsonPath('data.executions.succeeded', 1)
-        ->assertJsonPath('data.audit.total', 1);
+        ->assertJsonPath('data.audit.total', 1)
+        ->assertJsonPath('data.costs.total_tokens', 1234)
+        ->assertJsonPath('data.costs.estimated_cost_micros', 5678)
+        ->assertJsonPath('data.costs.currency', 'USD');
 });
 
 it('lists agents with filtering pagination and sorting', function (): void {

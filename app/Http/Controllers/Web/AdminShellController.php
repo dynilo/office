@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Infrastructure\Persistence\Eloquent\Models\Agent;
 use App\Infrastructure\Persistence\Eloquent\Models\Execution;
 use App\Infrastructure\Persistence\Eloquent\Models\ExecutionLog;
+use App\Infrastructure\Persistence\Eloquent\Models\ProviderUsageRecord;
 use App\Infrastructure\Persistence\Eloquent\Models\Task;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
@@ -14,7 +15,47 @@ class AdminShellController extends Controller
 {
     public function dashboard(): View
     {
-        return $this->page('dashboard', 'Dashboard');
+        $summary = $this->dashboardSummary();
+        $recentTasks = Task::query()
+            ->with('agent')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(6)
+            ->get()
+            ->map(fn (Task $task): array => $this->serializeTask($task))
+            ->values()
+            ->all();
+        $recentExecutions = Execution::query()
+            ->with(['agent', 'task', 'logs' => fn ($query) => $query->orderBy('sequence')])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(6)
+            ->get()
+            ->map(fn (Execution $execution): array => $this->serializeExecution($execution))
+            ->values()
+            ->all();
+
+        return $this->page(
+            page: 'dashboard',
+            title: 'Dashboard',
+            view: 'admin.dashboard',
+            bootstrap: [
+                'initialSummary' => $summary,
+                'recentTasks' => $recentTasks,
+                'recentExecutions' => $recentExecutions,
+                'dashboardMetrics' => [
+                    'summary' => route('api.admin.summary'),
+                    'tasks' => route('api.admin.tasks'),
+                    'executions' => route('api.admin.executions'),
+                    'refreshIntervalMs' => 30000,
+                ],
+            ],
+            data: [
+                'summary' => $summary,
+                'recentTasks' => $recentTasks,
+                'recentExecutions' => $recentExecutions,
+            ],
+        );
     }
 
     public function agents(): View
@@ -118,8 +159,7 @@ class AdminShellController extends Controller
         string $view = 'admin.page',
         array $bootstrap = [],
         array $data = [],
-    ): View
-    {
+    ): View {
         return view($view, [
             'page' => $page,
             'pageTitle' => $title,
@@ -163,6 +203,47 @@ class AdminShellController extends Controller
             ['key' => 'executions', 'label' => 'Executions', 'href' => route('admin.executions')],
             ['key' => 'audit', 'label' => 'Audit', 'href' => route('admin.audit')],
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function dashboardSummary(): array
+    {
+        $totalTasks = Task::query()->count();
+        $completedTasks = Task::query()->where('status', 'completed')->count();
+        $totalExecutions = Execution::query()->count();
+        $succeededExecutions = Execution::query()->where('status', 'succeeded')->count();
+
+        return [
+            'agents' => [
+                'total' => Agent::query()->count(),
+                'active' => Agent::query()->where('status', 'active')->count(),
+                'inactive' => Agent::query()->where('status', 'inactive')->count(),
+            ],
+            'tasks' => [
+                'total' => $totalTasks,
+                'draft' => Task::query()->where('status', 'draft')->count(),
+                'queued' => Task::query()->where('status', 'queued')->count(),
+                'in_progress' => Task::query()->where('status', 'in_progress')->count(),
+                'completed' => $completedTasks,
+                'failed' => Task::query()->where('status', 'failed')->count(),
+                'completion_rate' => $totalTasks === 0 ? 0 : round(($completedTasks / $totalTasks) * 100, 1),
+            ],
+            'executions' => [
+                'total' => $totalExecutions,
+                'pending' => Execution::query()->where('status', 'pending')->count(),
+                'running' => Execution::query()->where('status', 'running')->count(),
+                'succeeded' => $succeededExecutions,
+                'failed' => Execution::query()->where('status', 'failed')->count(),
+                'success_rate' => $totalExecutions === 0 ? 0 : round(($succeededExecutions / $totalExecutions) * 100, 1),
+            ],
+            'costs' => [
+                'total_tokens' => (int) ProviderUsageRecord::query()->sum('total_tokens'),
+                'estimated_cost_micros' => (int) ProviderUsageRecord::query()->sum('estimated_cost_micros'),
+                'currency' => (string) config('costs.currency', 'USD'),
+            ],
+        ];
     }
 
     /**

@@ -10,6 +10,7 @@ use App\Http\Resources\TaskResource;
 use App\Infrastructure\Persistence\Eloquent\Models\Agent;
 use App\Infrastructure\Persistence\Eloquent\Models\AuditEvent;
 use App\Infrastructure\Persistence\Eloquent\Models\Execution;
+use App\Infrastructure\Persistence\Eloquent\Models\ProviderUsageRecord;
 use App\Infrastructure\Persistence\Eloquent\Models\Task;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -44,6 +45,11 @@ class AdminController extends Controller
                 'audit' => [
                     'total' => AuditEvent::query()->count(),
                     'latest_event_at' => AuditEvent::query()->max('occurred_at'),
+                ],
+                'costs' => [
+                    'total_tokens' => (int) ProviderUsageRecord::query()->sum('total_tokens'),
+                    'estimated_cost_micros' => (int) ProviderUsageRecord::query()->sum('estimated_cost_micros'),
+                    'currency' => (string) config('costs.currency', 'USD'),
                 ],
             ],
         ]);
