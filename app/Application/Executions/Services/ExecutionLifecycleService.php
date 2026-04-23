@@ -12,6 +12,7 @@ use App\Application\Executions\Guards\ExecutionTransitionGuard;
 use App\Application\Policies\Services\PolicyEngineService;
 use App\Application\Runtime\Events\ExecutionCreated;
 use App\Application\Runtime\Events\ExecutionStatusChanged;
+use App\Application\UsageAccounting\Services\UsageAccountingService;
 use App\Domain\Executions\Contracts\ExecutionRepository;
 use App\Domain\Executions\Enums\ExecutionStatus;
 use App\Infrastructure\Persistence\Eloquent\Models\Execution;
@@ -31,6 +32,7 @@ final class ExecutionLifecycleService
         private readonly PolicyEngineService $policies,
         private readonly HumanApprovalGateService $approvals,
         private readonly ObservabilityService $observability,
+        private readonly UsageAccountingService $usage,
     ) {}
 
     public function createPendingForAssignedTask(string $taskId, string $idempotencyKey): Execution
@@ -67,6 +69,7 @@ final class ExecutionLifecycleService
         $this->approvals->assertExecutionCanStart($task, $agent);
 
         $execution = new Execution([
+            'organization_id' => $task->organization_id,
             'task_id' => $task->id,
             'agent_id' => $task->agent_id,
             'idempotency_key' => $idempotencyKey,
@@ -112,6 +115,17 @@ final class ExecutionLifecycleService
             'from' => 'new',
             'to' => ExecutionStatus::Pending->value,
         ]);
+        $this->usage->record(
+            metricKey: 'executions.created',
+            organizationId: $execution->organization_id,
+            agentId: $execution->agent_id,
+            taskId: $execution->task_id,
+            executionId: $execution->id,
+            metadata: [
+                'status' => $execution->status->value,
+                'attempt' => $execution->attempt,
+            ],
+        );
 
         return $execution->refresh()->load('logs');
     }
@@ -202,6 +216,16 @@ final class ExecutionLifecycleService
             'from' => $from->value,
             'to' => ExecutionStatus::Succeeded->value,
         ]);
+        $this->usage->record(
+            metricKey: 'executions.succeeded',
+            organizationId: $execution->organization_id,
+            agentId: $execution->agent_id,
+            taskId: $execution->task_id,
+            executionId: $execution->id,
+            metadata: [
+                'attempt' => $execution->attempt,
+            ],
+        );
 
         return $execution->refresh()->load('logs');
     }
@@ -255,6 +279,17 @@ final class ExecutionLifecycleService
             'to' => ExecutionStatus::Failed->value,
             'failure_classification' => $failureClassification,
         ]);
+        $this->usage->record(
+            metricKey: 'executions.failed',
+            organizationId: $execution->organization_id,
+            agentId: $execution->agent_id,
+            taskId: $execution->task_id,
+            executionId: $execution->id,
+            metadata: [
+                'attempt' => $execution->attempt,
+                'failure_classification' => $failureClassification,
+            ],
+        );
 
         return $execution->refresh()->load('logs');
     }

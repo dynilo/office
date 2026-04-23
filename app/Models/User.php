@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Infrastructure\Persistence\Eloquent\Models\UsageAccountingRecord;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -62,6 +64,11 @@ class User extends Authenticatable
     public function organizations(): BelongsToMany
     {
         return $this->belongsToMany(Organization::class)->withTimestamps();
+    }
+
+    public function usageAccountingRecords(): HasMany
+    {
+        return $this->hasMany(UsageAccountingRecord::class);
     }
 
     public function joinOrganization(Organization $organization, bool $makeCurrent = false): void

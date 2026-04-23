@@ -82,6 +82,11 @@ class Execution extends Model
         return $this->hasMany(Artifact::class);
     }
 
+    public function usageAccountingRecords(): HasMany
+    {
+        return $this->hasMany(UsageAccountingRecord::class);
+    }
+
     public function deadLetters(): HasMany
     {
         return $this->hasMany(DeadLetterRecord::class);

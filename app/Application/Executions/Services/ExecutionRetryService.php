@@ -63,6 +63,7 @@ final class ExecutionRetryService
         }
 
         $retryExecution = new Execution([
+            'organization_id' => $failed->organization_id,
             'task_id' => $failed->task_id,
             'agent_id' => $failed->agent_id,
             'retry_of_execution_id' => $failed->id,

@@ -7,6 +7,7 @@ use App\Application\Audit\Data\AuditSubjectData;
 use App\Application\Audit\Services\AuditEventWriter;
 use App\Application\Audit\Services\AuthenticatedAuditActorResolver;
 use App\Application\Tasks\Actions\CreateTaskAction;
+use App\Application\UsageAccounting\Services\UsageAccountingService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreTaskRequest;
 use App\Http\Resources\TaskResource;
@@ -20,6 +21,7 @@ class TaskController extends Controller
     public function __construct(
         private readonly AuditEventWriter $audit,
         private readonly AuthenticatedAuditActorResolver $actors,
+        private readonly UsageAccountingService $usage,
     ) {}
 
     public function index(): AnonymousResourceCollection
@@ -48,6 +50,18 @@ class TaskController extends Controller
                 'requested_agent_role' => $task->requested_agent_role,
             ],
         ));
+
+        $this->usage->record(
+            metricKey: 'tasks.created',
+            organizationId: $task->organization_id,
+            userId: $request->user()?->getAuthIdentifier() !== null ? (string) $request->user()?->getAuthIdentifier() : null,
+            taskId: $task->id,
+            metadata: [
+                'status' => $task->status->value,
+                'priority' => $task->priority->value,
+                'source' => $task->source,
+            ],
+        );
 
         return (new TaskResource($task))
             ->response()

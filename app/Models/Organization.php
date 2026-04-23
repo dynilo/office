@@ -6,6 +6,7 @@ use App\Infrastructure\Persistence\Eloquent\Models\Agent;
 use App\Infrastructure\Persistence\Eloquent\Models\DeadLetterRecord;
 use App\Infrastructure\Persistence\Eloquent\Models\Document;
 use App\Infrastructure\Persistence\Eloquent\Models\Task;
+use App\Infrastructure\Persistence\Eloquent\Models\UsageAccountingRecord;
 use Database\Factories\OrganizationFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -64,6 +65,11 @@ class Organization extends Model
     public function deadLetters(): HasMany
     {
         return $this->hasMany(DeadLetterRecord::class);
+    }
+
+    public function usageAccountingRecords(): HasMany
+    {
+        return $this->hasMany(UsageAccountingRecord::class);
     }
 
     public function settings(): HasOne
