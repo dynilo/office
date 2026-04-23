@@ -17,6 +17,7 @@ use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentTaskRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\PgvectorKnowledgeSimilaritySearch;
 use App\Infrastructure\Providers\OpenAiCompatibleProvider;
 use App\Support\Database\PostgresqlProductionReadiness;
+use App\Support\Queue\RedisQueueProductionReadiness;
 use App\Support\Security\SecretRedactor;
 use Illuminate\Support\ServiceProvider;
 
@@ -51,5 +52,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         app(PostgresqlProductionReadiness::class)->assertProductionSafe();
+        app(RedisQueueProductionReadiness::class)->assertProductionSafe();
     }
 }

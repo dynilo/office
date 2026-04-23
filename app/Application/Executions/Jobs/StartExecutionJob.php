@@ -20,6 +20,21 @@ class StartExecutionJob implements ShouldQueue
     public function __construct(
         public readonly string $executionId,
     ) {
+        $this->onConnection((string) config('queue.runtime.execution_connection', 'redis'));
+        $this->onQueue((string) config('queue.runtime.execution_queue', 'executions'));
+    }
+
+    public function tries(): int
+    {
+        return (int) config('queue.runtime.execution_tries', 3);
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    public function backoff(): array
+    {
+        return config('queue.runtime.execution_backoff', [5, 30, 120]);
     }
 
     public function handle(ExecutionLifecycleService $service): void

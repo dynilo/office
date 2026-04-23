@@ -17,6 +17,32 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Runtime Queue Alignment
+    |--------------------------------------------------------------------------
+    |
+    | Runtime jobs should be routed intentionally. The execution queue is kept
+    | separate from Laravel's default queue so workers can be supervised and
+    | scaled without mixing operational workloads.
+    |
+    */
+
+    'runtime' => [
+        'execution_connection' => env('RUNTIME_EXECUTION_QUEUE_CONNECTION', env('QUEUE_CONNECTION', 'redis')),
+        'execution_queue' => env('RUNTIME_EXECUTION_QUEUE', 'executions'),
+        'execution_tries' => (int) env('RUNTIME_EXECUTION_TRIES', 3),
+        'execution_backoff' => array_values(array_filter(array_map(
+            static fn (string $value): int => (int) trim($value),
+            explode(',', env('RUNTIME_EXECUTION_BACKOFF_SECONDS', '5,30,120')),
+        ), static fn (int $value): bool => $value >= 0)),
+    ],
+
+    'production' => [
+        'enforce_redis' => env('QUEUE_ENFORCE_REDIS_IN_PRODUCTION', true),
+        'require_blocking_pop' => env('QUEUE_REQUIRE_REDIS_BLOCK_FOR', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Queue Connections
     |--------------------------------------------------------------------------
     |
@@ -69,8 +95,8 @@ return [
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
             'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 90),
-            'block_for' => null,
-            'after_commit' => false,
+            'block_for' => (int) env('REDIS_QUEUE_BLOCK_FOR', 5),
+            'after_commit' => env('REDIS_QUEUE_AFTER_COMMIT', true),
         ],
 
         'deferred' => [
