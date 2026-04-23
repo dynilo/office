@@ -42,9 +42,18 @@
             "Composer\\Config::disableProcessTimeout",
             "@php artisan serve"
         ],
+        "lint": [
+            "./vendor/bin/pint --test"
+        ],
         "test": [
             "@php artisan config:clear --ansi",
             "@php artisan test"
+        ],
+        "ci": [
+            "@composer validate --strict",
+            "@composer lint",
+            "@php artisan about --only=environment,cache,drivers",
+            "@composer test"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",

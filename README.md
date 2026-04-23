@@ -26,3 +26,16 @@ php artisan key:generate
 php artisan about
 php artisan test
 ```
+
+## CI Baseline
+
+The repository includes a GitHub Actions workflow at `.github/workflows/ci.yml` that verifies:
+
+- `composer validate --strict`
+- `./vendor/bin/pint --test`
+- `php artisan about --only=environment,cache,drivers`
+- `php artisan test`
+
+## Deployment Baseline
+
+Minimal deploy-readiness guidance lives in `docs/DEPLOYMENT_BASELINE.md`. It documents the production assumptions and the release sequence without introducing hosting-specific infrastructure.
