@@ -18,6 +18,7 @@ use App\Infrastructure\Persistence\Eloquent\Models\Execution;
 use App\Infrastructure\Persistence\Eloquent\Models\Task;
 use App\Support\Exceptions\EntityNotFoundException;
 use App\Support\Exceptions\InvalidStateException;
+use App\Support\Observability\ObservabilityService;
 
 final class ExecutionLifecycleService
 {
@@ -29,6 +30,7 @@ final class ExecutionLifecycleService
         private readonly ProviderUsageCostTracker $costs,
         private readonly PolicyEngineService $policies,
         private readonly HumanApprovalGateService $approvals,
+        private readonly ObservabilityService $observability,
     ) {}
 
     public function createPendingForAssignedTask(string $taskId, string $idempotencyKey): Execution
@@ -106,6 +108,10 @@ final class ExecutionLifecycleService
             status: $execution->status->value,
             attempt: $execution->attempt,
         ));
+        $this->observability->metric('runtime.execution.transitions_total', 1, [
+            'from' => 'new',
+            'to' => ExecutionStatus::Pending->value,
+        ]);
 
         return $execution->refresh()->load('logs');
     }
@@ -140,6 +146,10 @@ final class ExecutionLifecycleService
             to: ExecutionStatus::Running->value,
             attempt: $execution->attempt,
         ));
+        $this->observability->metric('runtime.execution.transitions_total', 1, [
+            'from' => $from->value,
+            'to' => ExecutionStatus::Running->value,
+        ]);
 
         return $execution->refresh()->load('logs');
     }
@@ -188,6 +198,10 @@ final class ExecutionLifecycleService
             to: ExecutionStatus::Succeeded->value,
             attempt: $execution->attempt,
         ));
+        $this->observability->metric('runtime.execution.transitions_total', 1, [
+            'from' => $from->value,
+            'to' => ExecutionStatus::Succeeded->value,
+        ]);
 
         return $execution->refresh()->load('logs');
     }
@@ -236,6 +250,11 @@ final class ExecutionLifecycleService
             attempt: $execution->attempt,
             failureClassification: $failureClassification,
         ));
+        $this->observability->metric('runtime.execution.transitions_total', 1, [
+            'from' => $from->value,
+            'to' => ExecutionStatus::Failed->value,
+            'failure_classification' => $failureClassification,
+        ]);
 
         return $execution->refresh()->load('logs');
     }

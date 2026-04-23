@@ -1,9 +1,10 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
 use App\Application\Providers\Exceptions\LlmProviderException;
 use App\Application\Tasks\Services\RunQueuedResearchTaskService;
+use App\Support\Observability\ObservabilityService;
+use Illuminate\Foundation\Inspiring;
+use Illuminate\Support\Facades\Artisan;
 use Symfony\Component\Console\Command\Command;
 
 Artisan::command('inspire', function () {
@@ -29,3 +30,9 @@ Artisan::command('research-agent:run-one', function (RunQueuedResearchTaskServic
 
     return Command::SUCCESS;
 })->purpose('Run one queued research task end-to-end.');
+
+Artisan::command('observability:diagnose', function (ObservabilityService $observability) {
+    $this->line(json_encode($observability->diagnostics(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+    return Command::SUCCESS;
+})->purpose('Show the current observability configuration diagnostics.');

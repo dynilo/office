@@ -5,6 +5,7 @@ namespace App\Infrastructure\Memory;
 use App\Application\Memory\Contracts\EmbeddingGenerator;
 use App\Application\Memory\Data\EmbeddingData;
 use App\Application\Memory\Exceptions\EmbeddingProviderException;
+use App\Support\Observability\ObservabilityService;
 use App\Support\Security\SecretRedactor;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
@@ -23,6 +24,7 @@ final class OpenAiCompatibleEmbeddingGenerator implements EmbeddingGenerator
     public function __construct(
         private readonly array $config,
         private readonly SecretRedactor $redactor,
+        private readonly ObservabilityService $observability,
     ) {}
 
     public function generate(string $input): EmbeddingData
@@ -33,6 +35,11 @@ final class OpenAiCompatibleEmbeddingGenerator implements EmbeddingGenerator
             'encoding_format' => 'float',
         ];
         $headers = $this->buildHeaders();
+        $span = $this->observability->startSpan('embedding.provider.generate', [
+            'provider' => 'openai_compatible',
+            'operation' => 'embeddings',
+            'input_sha256' => hash('sha256', $input),
+        ]);
 
         $this->logRequest($input, $payload, $headers);
 
@@ -42,6 +49,14 @@ final class OpenAiCompatibleEmbeddingGenerator implements EmbeddingGenerator
                 ->throw();
         } catch (ConnectionException $exception) {
             $this->logFailure('transport_error', null, ['message' => $exception->getMessage()]);
+            $this->observability->metric('embedding.provider.requests_total', 1, [
+                'provider' => 'openai_compatible',
+                'outcome' => 'transport_error',
+            ]);
+            $this->observability->failSpan($span, [
+                'provider' => 'openai_compatible',
+                'error_code' => 'transport_error',
+            ]);
 
             throw EmbeddingProviderException::transport('openai_compatible', 'Embedding provider transport failure.');
         } catch (RequestException $exception) {
@@ -53,10 +68,29 @@ final class OpenAiCompatibleEmbeddingGenerator implements EmbeddingGenerator
                 statusCode: $normalized->statusCode,
                 context: $normalized->context,
             );
+            $this->observability->metric('embedding.provider.requests_total', 1, [
+                'provider' => 'openai_compatible',
+                'outcome' => 'http_error',
+                'status_code' => $normalized->statusCode,
+            ]);
+            $this->observability->failSpan($span, [
+                'provider' => 'openai_compatible',
+                'error_code' => $normalized->errorCode,
+                'status_code' => $normalized->statusCode,
+                'request_id' => $normalized->context['request_id'] ?? null,
+            ]);
 
             throw $normalized;
         } catch (Throwable $exception) {
             $this->logFailure('unexpected_error', null, ['message' => $exception->getMessage()]);
+            $this->observability->metric('embedding.provider.requests_total', 1, [
+                'provider' => 'openai_compatible',
+                'outcome' => 'unexpected_error',
+            ]);
+            $this->observability->failSpan($span, [
+                'provider' => 'openai_compatible',
+                'error_code' => 'unexpected_error',
+            ]);
 
             throw EmbeddingProviderException::response(
                 provider: 'openai_compatible',
@@ -74,6 +108,17 @@ final class OpenAiCompatibleEmbeddingGenerator implements EmbeddingGenerator
                 'message' => $exception->getMessage(),
                 'request_id' => $response->header('x-request-id'),
             ]);
+            $this->observability->metric('embedding.provider.requests_total', 1, [
+                'provider' => 'openai_compatible',
+                'outcome' => 'invalid_response',
+                'status_code' => $response->status(),
+            ]);
+            $this->observability->failSpan($span, [
+                'provider' => 'openai_compatible',
+                'error_code' => 'invalid_embedding_response',
+                'status_code' => $response->status(),
+                'request_id' => $response->header('x-request-id'),
+            ]);
 
             throw EmbeddingProviderException::response(
                 provider: 'openai_compatible',
@@ -88,6 +133,17 @@ final class OpenAiCompatibleEmbeddingGenerator implements EmbeddingGenerator
         }
 
         $this->logResponse($response, $embedding);
+        $this->observability->metric('embedding.provider.requests_total', 1, [
+            'provider' => 'openai_compatible',
+            'outcome' => 'success',
+            'status_code' => $response->status(),
+        ]);
+        $this->observability->finishSpan($span, [
+            'provider' => 'openai_compatible',
+            'request_id' => $response->header('x-request-id'),
+            'model' => $embedding->model,
+            'dimensions' => $embedding->dimensions(),
+        ]);
 
         return $embedding;
     }

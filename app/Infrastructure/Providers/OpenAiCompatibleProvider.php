@@ -6,6 +6,7 @@ use App\Application\Providers\Contracts\LlmProvider;
 use App\Application\Providers\Data\LlmRequestData;
 use App\Application\Providers\Data\LlmResponseData;
 use App\Application\Providers\Exceptions\LlmProviderException;
+use App\Support\Observability\ObservabilityService;
 use App\Support\Security\SecretRedactor;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
@@ -20,6 +21,7 @@ final class OpenAiCompatibleProvider implements LlmProvider
     public function __construct(
         private readonly array $config,
         private readonly SecretRedactor $redactor,
+        private readonly ObservabilityService $observability,
     ) {}
 
     public function generate(LlmRequestData $request): LlmResponseData
@@ -29,6 +31,11 @@ final class OpenAiCompatibleProvider implements LlmProvider
             static fn (mixed $value): bool => $value !== null,
         );
         $headers = $this->buildHeaders($request);
+        $span = $this->observability->startSpan('llm.provider.generate', [
+            'trace_id' => $request->metadata['trace_id'] ?? null,
+            'provider' => 'openai_compatible',
+            'operation' => 'chat.completions',
+        ]);
 
         $this->logRequest($payload, $headers);
 
@@ -38,6 +45,14 @@ final class OpenAiCompatibleProvider implements LlmProvider
                 ->throw();
         } catch (ConnectionException $exception) {
             $this->logFailure('transport_error', null, ['message' => $exception->getMessage()]);
+            $this->observability->metric('llm.provider.requests_total', 1, [
+                'provider' => 'openai_compatible',
+                'outcome' => 'transport_error',
+            ]);
+            $this->observability->failSpan($span, [
+                'provider' => 'openai_compatible',
+                'error_code' => 'transport_error',
+            ]);
 
             throw LlmProviderException::transport('openai_compatible', 'Provider transport failure.');
         } catch (RequestException $exception) {
@@ -49,10 +64,29 @@ final class OpenAiCompatibleProvider implements LlmProvider
                 statusCode: $normalized->statusCode,
                 context: $normalized->context,
             );
+            $this->observability->metric('llm.provider.requests_total', 1, [
+                'provider' => 'openai_compatible',
+                'outcome' => 'http_error',
+                'status_code' => $normalized->statusCode,
+            ]);
+            $this->observability->failSpan($span, [
+                'provider' => 'openai_compatible',
+                'error_code' => $normalized->errorCode,
+                'status_code' => $normalized->statusCode,
+                'request_id' => $normalized->context['request_id'] ?? null,
+            ]);
 
             throw $normalized;
         } catch (Throwable $exception) {
             $this->logFailure('unexpected_error', null, ['message' => $exception->getMessage()]);
+            $this->observability->metric('llm.provider.requests_total', 1, [
+                'provider' => 'openai_compatible',
+                'outcome' => 'unexpected_error',
+            ]);
+            $this->observability->failSpan($span, [
+                'provider' => 'openai_compatible',
+                'error_code' => 'unexpected_error',
+            ]);
 
             throw LlmProviderException::response(
                 provider: 'openai_compatible',
@@ -76,6 +110,18 @@ final class OpenAiCompatibleProvider implements LlmProvider
         );
 
         $this->logResponse($response, $normalized);
+        $this->observability->metric('llm.provider.requests_total', 1, [
+            'provider' => 'openai_compatible',
+            'outcome' => 'success',
+            'status_code' => $response->status(),
+        ]);
+        $this->observability->finishSpan($span, [
+            'provider' => 'openai_compatible',
+            'request_id' => $normalized->requestId,
+            'response_id' => $normalized->responseId,
+            'input_tokens' => $normalized->inputTokens,
+            'output_tokens' => $normalized->outputTokens,
+        ]);
 
         return $normalized;
     }

@@ -20,6 +20,7 @@ use App\Infrastructure\Persistence\Eloquent\Repositories\PgvectorKnowledgeSimila
 use App\Infrastructure\Providers\OpenAiCompatibleProvider;
 use App\Support\Database\PostgresqlProductionReadiness;
 use App\Support\Exceptions\InvalidStateException;
+use App\Support\Observability\ObservabilityService;
 use App\Support\Queue\RedisQueueProductionReadiness;
 use App\Support\Security\SecretRedactor;
 use App\Support\Tenancy\TenantContext;
@@ -41,6 +42,7 @@ class AppServiceProvider extends ServiceProvider
                 return new OpenAiCompatibleEmbeddingGenerator(
                     config('providers.embeddings.openai_compatible'),
                     $app->make(SecretRedactor::class),
+                    $app->make(ObservabilityService::class),
                 );
             }
 
@@ -67,6 +69,7 @@ class AppServiceProvider extends ServiceProvider
                     providers: $providers,
                     order: $order,
                     fallbackOnRetriableOnly: (bool) config('providers.failover.fallback_on_retriable_only', true),
+                    observability: $app->make(ObservabilityService::class),
                 );
             }
 
@@ -80,10 +83,12 @@ class AppServiceProvider extends ServiceProvider
             'openai_compatible' => new OpenAiCompatibleProvider(
                 config('providers.openai_compatible'),
                 $redactor,
+                $this->app->make(ObservabilityService::class),
             ),
             'openai_compatible_secondary' => new OpenAiCompatibleProvider(
                 config('providers.openai_compatible_secondary'),
                 $redactor,
+                $this->app->make(ObservabilityService::class),
             ),
             default => throw new InvalidStateException("LLM provider [{$name}] is not supported."),
         };

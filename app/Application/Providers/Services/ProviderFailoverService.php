@@ -7,6 +7,7 @@ use App\Application\Providers\Data\LlmRequestData;
 use App\Application\Providers\Data\LlmResponseData;
 use App\Application\Providers\Exceptions\LlmProviderException;
 use App\Support\Exceptions\InvalidStateException;
+use App\Support\Observability\ObservabilityService;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -20,6 +21,7 @@ final class ProviderFailoverService implements LlmProvider
         private readonly array $providers,
         private readonly array $order,
         private readonly bool $fallbackOnRetriableOnly = true,
+        private readonly ?ObservabilityService $observability = null,
     ) {}
 
     public function generate(LlmRequestData $request): LlmResponseData
@@ -46,6 +48,11 @@ final class ProviderFailoverService implements LlmProvider
                         'selected_provider' => $name,
                         'attempts' => $attempts,
                     ]);
+                    $this->observability?->metric('llm.provider.failover_total', 1, [
+                        'selected_provider' => $name,
+                        'attempt_count' => count($attempts) + 1,
+                        'outcome' => 'recovered',
+                    ]);
                 }
 
                 return $response;
@@ -57,6 +64,11 @@ final class ProviderFailoverService implements LlmProvider
                     Log::warning('llm.provider.failover_stopped', [
                         'provider' => $name,
                         'attempts' => $attempts,
+                    ]);
+                    $this->observability?->metric('llm.provider.failover_total', 1, [
+                        'selected_provider' => $name,
+                        'attempt_count' => count($attempts),
+                        'outcome' => 'stopped',
                     ]);
 
                     throw $exception;
@@ -80,6 +92,11 @@ final class ProviderFailoverService implements LlmProvider
                     'provider' => $name,
                     'attempts' => $attempts,
                 ]);
+                $this->observability?->metric('llm.provider.failover_total', 1, [
+                    'selected_provider' => $name,
+                    'attempt_count' => count($attempts),
+                    'outcome' => 'unexpected_error',
+                ]);
 
                 throw $normalized;
             }
@@ -87,6 +104,11 @@ final class ProviderFailoverService implements LlmProvider
 
         Log::warning('llm.provider.failover_exhausted', [
             'attempts' => $attempts,
+        ]);
+        $this->observability?->metric('llm.provider.failover_total', 1, [
+            'selected_provider' => null,
+            'attempt_count' => count($attempts),
+            'outcome' => 'exhausted',
         ]);
 
         throw $lastException ?? new InvalidStateException('Provider failover exhausted without a provider failure.');
