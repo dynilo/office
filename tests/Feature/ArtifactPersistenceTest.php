@@ -37,6 +37,7 @@ it('persists structured artifacts linked to tasks and executions', function (): 
 
 it('stores file metadata artifacts without file ingestion', function (): void {
     $task = Task::factory()->create();
+    config()->set('runtime_storage.artifacts.allowed_disks', ['local', 'private']);
 
     $artifact = app(ArtifactPersistenceService::class)->store(
         task: $task,
@@ -59,6 +60,7 @@ it('stores file metadata artifacts without file ingestion', function (): void {
     expect($artifact->execution_id)->toBeNull()
         ->and($artifact->kind)->toBe('file')
         ->and($artifact->file_metadata['path'] ?? null)->toBe('artifacts/report.txt')
+        ->and($artifact->file_metadata['storage_intent'] ?? null)->toBe('runtime_artifact')
         ->and($artifact->file_metadata['mime_type'] ?? null)->toBe('text/plain')
         ->and(Artifact::query()->where('name', 'report_attachment')->exists())->toBeTrue();
 });

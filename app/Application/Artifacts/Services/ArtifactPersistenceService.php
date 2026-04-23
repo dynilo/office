@@ -9,13 +9,14 @@ use App\Application\Audit\Services\AuditEventWriter;
 use App\Infrastructure\Persistence\Eloquent\Models\Artifact;
 use App\Infrastructure\Persistence\Eloquent\Models\Execution;
 use App\Infrastructure\Persistence\Eloquent\Models\Task;
+use App\Support\Storage\RuntimeStorageStrategy;
 
 final class ArtifactPersistenceService
 {
     public function __construct(
         private readonly AuditEventWriter $audit,
-    ) {
-    }
+        private readonly RuntimeStorageStrategy $storage,
+    ) {}
 
     public function store(
         Task $task,
@@ -27,6 +28,8 @@ final class ArtifactPersistenceService
         ?array $fileMetadata = null,
         array $metadata = [],
     ): Artifact {
+        $fileMetadata = $this->storage->normalizeArtifactFileMetadata($fileMetadata);
+
         $artifact = Artifact::query()->create([
             'task_id' => $task->id,
             'execution_id' => $execution?->id,
@@ -48,6 +51,8 @@ final class ArtifactPersistenceService
                 'execution_id' => $execution?->id,
                 'kind' => $kind,
                 'name' => $name,
+                'storage_disk' => $fileMetadata['disk'] ?? null,
+                'storage_path' => $fileMetadata['path'] ?? null,
             ],
         ));
 

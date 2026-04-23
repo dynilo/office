@@ -14,6 +14,8 @@ beforeEach(function (): void {
 
 it('ingests a document and persists extracted raw text plus metadata', function (): void {
     Storage::fake('local');
+    config()->set('runtime_storage.documents.disk', 'local');
+    config()->set('runtime_storage.documents.path_prefix', 'documents');
 
     $file = UploadedFile::fake()->createWithContent(
         'research-notes.txt',
@@ -38,6 +40,7 @@ it('ingests a document and persists extracted raw text plus metadata', function 
         ->assertJsonPath('data.metadata.source', 'api-test')
         ->assertJsonPath('data.metadata.category', 'notes')
         ->assertJsonPath('data.metadata.original_filename', 'research-notes.txt')
+        ->assertJsonPath('data.metadata.ingestion.storage_intent', 'runtime_document')
         ->assertJsonPath('data.metadata.extraction.parser', 'plain_text')
         ->assertJsonPath('data.metadata.extraction.line_count', 3);
 
@@ -47,6 +50,7 @@ it('ingests a document and persists extracted raw text plus metadata', function 
     expect($document->title)->toBe('Research Notes')
         ->and($document->raw_text)->toBe("Alpha finding\nBeta finding\nGamma finding")
         ->and($document->metadata['source'] ?? null)->toBe('api-test')
+        ->and($document->storage_path)->toStartWith('documents/')
         ->and($document->metadata['extraction']['character_count'] ?? null)->toBe(40)
         ->and($document->ingested_at)->not->toBeNull()
         ->and($document->text_extracted_at)->not->toBeNull();

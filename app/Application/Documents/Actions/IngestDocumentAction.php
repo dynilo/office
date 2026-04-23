@@ -4,16 +4,16 @@ namespace App\Application\Documents\Actions;
 
 use App\Application\Documents\Services\DocumentParserRegistry;
 use App\Infrastructure\Persistence\Eloquent\Models\Document;
+use App\Support\Storage\RuntimeStorageStrategy;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 final class IngestDocumentAction
 {
     public function __construct(
         private readonly DocumentParserRegistry $parsers,
-    ) {
-    }
+        private readonly RuntimeStorageStrategy $storage,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $payload
@@ -22,12 +22,8 @@ final class IngestDocumentAction
     {
         /** @var UploadedFile $file */
         $file = $payload['file'];
-        $disk = (string) config('documents.storage_disk', 'local');
-        $storedPath = $file->storeAs(
-            'documents/'.now()->format('Y/m/d'),
-            Str::ulid().'_'.$file->getClientOriginalName(),
-            $disk,
-        );
+        $disk = $this->storage->documentDisk();
+        $storedPath = $file->storeAs('', $this->storage->documentPathForUpload($file), $disk);
         $mimeType = $file->getMimeType() ?: $file->getClientMimeType() ?: 'application/octet-stream';
         $parsed = $this->parsers->parse($disk, $storedPath, $mimeType);
 
@@ -44,6 +40,7 @@ final class IngestDocumentAction
                 'extension' => $file->getClientOriginalExtension(),
                 'ingestion' => [
                     'parser' => $parsed->metadata['parser'] ?? null,
+                    'storage_intent' => 'runtime_document',
                 ],
                 ...($payload['metadata'] ?? []),
                 'extraction' => $parsed->metadata,
