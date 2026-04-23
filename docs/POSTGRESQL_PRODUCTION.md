@@ -12,3 +12,16 @@ Production defaults:
 The readiness guard checks configuration only. It does not require a live PostgreSQL server, so diagnostics remain safe in build and CI environments.
 
 Set `DB_ENFORCE_POSTGRESQL=false` only for controlled emergency maintenance or non-production environments.
+
+For live runtime validation against the configured PostgreSQL connection, run:
+
+```bash
+php artisan postgresql:validate-runtime
+```
+
+This runtime validation attempts a real connection and reports:
+- server version visibility
+- current database resolution
+- current schema alignment against `DB_SEARCH_PATH`
+
+In environments where PostgreSQL is unavailable, the command fails safely with a structured JSON report and a redacted connection error.
