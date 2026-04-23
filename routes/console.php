@@ -2,6 +2,7 @@
 
 use App\Application\Providers\Exceptions\LlmProviderException;
 use App\Application\Tasks\Services\RunQueuedResearchTaskService;
+use App\Support\Auth\AuthAccessValidation;
 use App\Support\Backup\BackupBaselineService;
 use App\Support\Database\PgvectorRuntimeValidation;
 use App\Support\Database\PostgresqlRuntimeValidation;
@@ -85,3 +86,11 @@ Artisan::command('workers:validate-runtime', function (QueueProcessValidation $v
 
     return $report['ready'] === true ? Command::SUCCESS : Command::FAILURE;
 })->purpose('Validate worker supervision and queue process expectations.');
+
+Artisan::command('auth:validate-runtime', function (AuthAccessValidation $validation) {
+    $report = $validation->report();
+
+    $this->line(json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+    return $report['ready'] === true ? Command::SUCCESS : Command::FAILURE;
+})->purpose('Validate authentication and role-protected route expectations.');

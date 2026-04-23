@@ -8,13 +8,17 @@ use App\Infrastructure\Persistence\Eloquent\Models\AuditEvent;
 use App\Infrastructure\Persistence\Eloquent\Models\Execution;
 use App\Infrastructure\Persistence\Eloquent\Models\ProviderUsageRecord;
 use App\Infrastructure\Persistence\Eloquent\Models\Task;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
-    $this->actingAs(User::factory()->create());
+    $user = User::factory()->create();
+    $user->assignRole(Role::OBSERVER);
+
+    $this->actingAs($user);
 });
 
 it('returns admin summary data', function (): void {

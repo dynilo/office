@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -28,5 +29,17 @@ it('allows authenticated session access to protected APIs', function (): void {
 
     $this->getJson('/api/agents')->assertOk();
     $this->getJson('/api/tasks')->assertOk();
-    $this->getJson('/api/admin/summary')->assertOk();
+});
+
+it('requires an allowed admin role for admin api access', function (): void {
+    $this->actingAs(User::factory()->create())
+        ->getJson('/api/admin/summary')
+        ->assertForbidden();
+
+    $user = User::factory()->create();
+    $user->assignRole(Role::OBSERVER);
+
+    $this->actingAs($user)
+        ->getJson('/api/admin/summary')
+        ->assertOk();
 });

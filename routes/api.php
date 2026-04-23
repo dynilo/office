@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AgentController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\TaskController;
+use App\Models\Role;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', static fn () => response()->json([
@@ -32,7 +33,9 @@ Route::middleware(['web', 'auth'])->group(function (): void {
         Route::post('/{document}/extract-knowledge', [DocumentController::class, 'extractKnowledge']);
     });
 
-    Route::prefix('admin')->group(function (): void {
+    Route::prefix('admin')->middleware([
+        'role:'.implode(',', [Role::SUPER_ADMIN, Role::ADMIN, Role::OPERATOR, Role::OBSERVER]),
+    ])->group(function (): void {
         Route::get('/summary', [AdminController::class, 'summary'])->name('api.admin.summary');
         Route::get('/agents', [AdminController::class, 'agents'])->name('api.admin.agents');
         Route::get('/tasks', [AdminController::class, 'tasks'])->name('api.admin.tasks');
