@@ -6,6 +6,7 @@ use App\Support\Auth\AuthAccessValidation;
 use App\Support\Backup\BackupBaselineService;
 use App\Support\Database\PgvectorRuntimeValidation;
 use App\Support\Database\PostgresqlRuntimeValidation;
+use App\Support\Memory\EmbeddingProviderRuntimeValidation;
 use App\Support\Observability\ObservabilityService;
 use App\Support\Redis\RedisRuntimeValidation;
 use App\Support\Workers\QueueProcessValidation;
@@ -94,3 +95,11 @@ Artisan::command('auth:validate-runtime', function (AuthAccessValidation $valida
 
     return $report['ready'] === true ? Command::SUCCESS : Command::FAILURE;
 })->purpose('Validate authentication and role-protected route expectations.');
+
+Artisan::command('embedding-provider:validate-runtime', function (EmbeddingProviderRuntimeValidation $validation) {
+    $report = $validation->report();
+
+    $this->line(json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+    return $report['ready'] === true ? Command::SUCCESS : Command::FAILURE;
+})->purpose('Validate real embedding provider runtime readiness and normalized output expectations.');
