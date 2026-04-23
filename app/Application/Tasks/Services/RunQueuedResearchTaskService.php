@@ -1,0 +1,79 @@
+<?php
+
+namespace App\Application\Tasks\Services;
+
+use App\Application\Agents\Services\ResearchAnalystAgent;
+use App\Application\Executions\Services\ExecutionLifecycleService;
+use App\Application\Providers\Exceptions\LlmProviderException;
+use App\Domain\Tasks\Contracts\TaskRepository;
+use App\Domain\Tasks\Enums\TaskStatus;
+use App\Infrastructure\Persistence\Eloquent\Models\Task;
+use App\Support\Exceptions\InvalidStateException;
+
+final class RunQueuedResearchTaskService
+{
+    public function __construct(
+        private readonly TaskRepository $tasks,
+        private readonly AssignTaskService $assignment,
+        private readonly ExecutionLifecycleService $executions,
+        private readonly ResearchAnalystAgent $researchAgent,
+    ) {
+    }
+
+    public function runOne(): ?Task
+    {
+        $task = $this->tasks->findFirstQueuedByRole('research');
+
+        if ($task === null) {
+            return null;
+        }
+
+        $decision = $this->assignment->assign($task->id);
+
+        if (! $decision->wasAssigned()) {
+            throw new InvalidStateException('Queued research task could not be assigned.');
+        }
+
+        $task = $this->tasks->findForAssignment($task->id);
+
+        if ($task === null || $task->agent === null) {
+            throw new InvalidStateException('Assigned research task could not be reloaded.');
+        }
+
+        $execution = $this->executions->createPendingForAssignedTask(
+            taskId: $task->id,
+            idempotencyKey: 'task-'.$task->id.'-attempt-1',
+        );
+
+        $task->status = TaskStatus::InProgress;
+        $this->tasks->save($task);
+
+        dispatch_sync(new \App\Application\Executions\Jobs\StartExecutionJob($execution->id));
+
+        try {
+            $result = $this->researchAgent->run($task, $task->agent);
+
+            $this->executions->markSucceeded(
+                executionId: $execution->id,
+                outputPayload: $result['structured_result'],
+                providerResponse: $result['raw_response'] + [
+                    'prompt_messages' => $result['prompt_messages'],
+                ],
+            );
+
+            $task->status = TaskStatus::Completed;
+            return $this->tasks->save($task);
+        } catch (LlmProviderException $exception) {
+            $this->executions->markFailed($execution->id, $exception->getMessage(), [
+                'provider' => $exception->provider,
+                'status_code' => $exception->statusCode,
+                'error_code' => $exception->errorCode,
+            ]);
+
+            $task->status = TaskStatus::Failed;
+            $this->tasks->save($task);
+
+            throw $exception;
+        }
+    }
+}

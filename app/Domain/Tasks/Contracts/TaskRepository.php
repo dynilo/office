@@ -13,5 +13,7 @@ interface TaskRepository
 
     public function findForAssignment(string $taskId): ?Task;
 
+    public function findFirstQueuedByRole(string $role): ?Task;
+
     public function save(Task $task): Task;
 }

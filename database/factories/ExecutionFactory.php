@@ -29,6 +29,10 @@ class ExecutionFactory extends Factory
             'output_payload' => [
                 'result' => fake()->paragraph(),
             ],
+            'provider_response' => [
+                'provider' => 'openai_compatible',
+                'response_id' => fake()->uuid(),
+            ],
             'error_message' => null,
             'started_at' => now()->subMinutes(fake()->numberBetween(1, 30)),
             'finished_at' => now()->subMinutes(fake()->numberBetween(0, 10)),

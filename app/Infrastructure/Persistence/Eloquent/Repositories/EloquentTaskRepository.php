@@ -4,6 +4,7 @@ namespace App\Infrastructure\Persistence\Eloquent\Repositories;
 
 use App\Domain\Tasks\Contracts\TaskRepository;
 use App\Domain\Tasks\Data\TaskPayloadSummaryData;
+use App\Domain\Tasks\Enums\TaskStatus;
 use App\Infrastructure\Persistence\Eloquent\Models\Task;
 
 final class EloquentTaskRepository implements TaskRepository
@@ -32,7 +33,17 @@ final class EloquentTaskRepository implements TaskRepository
 
     public function findForAssignment(string $taskId): ?Task
     {
-        return Task::query()->find($taskId);
+        return Task::query()->with('agent.profile')->find($taskId);
+    }
+
+    public function findFirstQueuedByRole(string $role): ?Task
+    {
+        return Task::query()
+            ->where('status', TaskStatus::Queued->value)
+            ->where('requested_agent_role', $role)
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->first();
     }
 
     public function save(Task $task): Task

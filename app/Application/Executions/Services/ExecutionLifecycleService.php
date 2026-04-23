@@ -77,13 +77,18 @@ final class ExecutionLifecycleService
         return $execution->refresh()->load('logs');
     }
 
-    public function markSucceeded(string $executionId, array $outputPayload = []): Execution
+    public function markSucceeded(
+        string $executionId,
+        array $outputPayload = [],
+        ?array $providerResponse = null,
+    ): Execution
     {
         $execution = $this->getExecution($executionId);
         $this->guard->assertCanTransition($execution->status, ExecutionStatus::Succeeded);
 
         $execution->status = ExecutionStatus::Succeeded;
         $execution->output_payload = $outputPayload;
+        $execution->provider_response = $providerResponse;
         $execution->error_message = null;
         $execution->finished_at = now();
         $execution = $this->executions->save($execution);
