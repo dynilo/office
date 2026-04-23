@@ -23,6 +23,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 it('runs one queued research task end to end with retrieved context', function (): void {
+    config()->set('prompts.default.version', 'research-prompt-v1');
+
     $agent = Agent::factory()->create([
         'role' => 'research',
         'status' => AgentStatus::Active,
@@ -120,7 +122,9 @@ it('runs one queued research task end to end with retrieved context', function (
     expect($provider->lastRequest)->not->toBeNull()
         ->and(collect($provider->lastRequest?->messages)->pluck('content')->implode("\n\n"))->toContain('[Retrieved Context]')
         ->and(collect($provider->lastRequest?->messages)->pluck('content')->implode("\n\n"))->toContain('Title: Vendor Landscape Chunk 1')
-        ->and(collect($provider->lastRequest?->messages)->pluck('content')->implode("\n\n"))->toContain('Vendor A leads enterprise adoption');
+        ->and(collect($provider->lastRequest?->messages)->pluck('content')->implode("\n\n"))->toContain('Vendor A leads enterprise adoption')
+        ->and($provider->lastRequest?->metadata['prompt']['version'] ?? null)->toBe('research-prompt-v1')
+        ->and($provider->lastRequest?->metadata['prompt']['fingerprint'] ?? null)->toHaveLength(64);
 
     expect($task->status)->toBe(TaskStatus::Completed)
         ->and($task->agent_id)->toBe($agent->id)
@@ -131,6 +135,8 @@ it('runs one queued research task end to end with retrieved context', function (
         ->and($execution?->output_payload['grounding']['knowledge_item_ids'][0] ?? null)->toBe($knowledgeItem->id)
         ->and($execution?->provider_response['provider'] ?? null)->toBe('fake')
         ->and($execution?->provider_response['response_id'] ?? null)->toBe('resp_research_1')
+        ->and($execution?->provider_response['prompt']['version'] ?? null)->toBe('research-prompt-v1')
+        ->and($execution?->provider_response['prompt']['fingerprint'] ?? null)->toHaveLength(64)
         ->and($execution?->provider_response['grounding_trace'][0]['knowledge_item_id'] ?? null)->toBe($knowledgeItem->id)
         ->and($execution?->logs)->toHaveCount(3)
         ->and($artifacts)->toHaveCount(2)

@@ -5,7 +5,11 @@ use App\Application\Prompts\Services\PromptBuilder;
 use App\Application\Prompts\Strategies\AgentRoleTemplateStrategy;
 
 it('builds the same prompt output for the same input', function (): void {
-    $builder = new PromptBuilder(new AgentRoleTemplateStrategy());
+    config()->set('prompts.default.version', 'test-prompt-v1');
+    config()->set('prompts.default.template_strategy', 'agent-role-template');
+    config()->set('prompts.default.schema_version', '1');
+
+    $builder = new PromptBuilder(new AgentRoleTemplateStrategy);
 
     $input = new PromptBuildInputData(
         agentName: 'Support Agent',
@@ -33,11 +37,16 @@ it('builds the same prompt output for the same input', function (): void {
     expect(array_map(fn ($section) => $section->toBlock(), $first->sections))
         ->toBe(array_map(fn ($section) => $section->toBlock(), $second->sections))
         ->and(array_map(fn ($message) => $message->toArray(), $first->messages))
-        ->toBe(array_map(fn ($message) => $message->toArray(), $second->messages));
+        ->toBe(array_map(fn ($message) => $message->toArray(), $second->messages))
+        ->and($first->trace->toArray())->toBe($second->trace->toArray())
+        ->and($first->trace->version)->toBe('test-prompt-v1')
+        ->and($first->trace->templateStrategy)->toBe('agent-role-template')
+        ->and($first->trace->schemaVersion)->toBe('1')
+        ->and($first->trace->fingerprint)->toHaveLength(64);
 });
 
 it('generates different prompt shapes for different agent roles', function (): void {
-    $builder = new PromptBuilder(new AgentRoleTemplateStrategy());
+    $builder = new PromptBuilder(new AgentRoleTemplateStrategy);
 
     $support = $builder->build(new PromptBuildInputData(
         agentName: 'Support Agent',
@@ -61,11 +70,12 @@ it('generates different prompt shapes for different agent roles', function (): v
 
     expect($support->messages[0]->content)->not->toBe($research->messages[0]->content)
         ->and($support->messages[1]->content)->toContain('Agent role: support')
-        ->and($research->messages[1]->content)->toContain('Agent role: research');
+        ->and($research->messages[1]->content)->toContain('Agent role: research')
+        ->and($support->trace->fingerprint)->not->toBe($research->trace->fingerprint);
 });
 
 it('deduplicates optional memory and context blocks deterministically', function (): void {
-    $builder = new PromptBuilder(new AgentRoleTemplateStrategy());
+    $builder = new PromptBuilder(new AgentRoleTemplateStrategy);
 
     $prompt = $builder->build(new PromptBuildInputData(
         agentName: 'Operations Agent',

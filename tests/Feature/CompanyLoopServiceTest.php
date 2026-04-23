@@ -20,6 +20,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 it('runs an end-to-end mini company loop with coordinator decomposition and specialist outputs', function (): void {
+    config()->set('prompts.default.version', 'specialist-prompt-v1');
+
     $coordinator = Agent::factory()->create([
         'name' => 'Office Coordinator',
         'role' => CoordinatorAgent::ROLE,
@@ -127,7 +129,11 @@ it('runs an end-to-end mini company loop with coordinator decomposition and spec
             'compliance_review',
             'finance_analysis',
             'strategy_brief',
-        ]);
+        ])
+        ->and($executions->pluck('provider_response.prompt.version')->unique()->values()->all())->toBe([
+            'specialist-prompt-v1',
+        ])
+        ->and($executions->pluck('provider_response.prompt.fingerprint')->filter())->toHaveCount(3);
 
     expect($artifacts->where('name', 'structured_result'))->toHaveCount(3)
         ->and($artifacts->where('name', 'raw_response'))->toHaveCount(3)
@@ -137,5 +143,8 @@ it('runs an end-to-end mini company loop with coordinator decomposition and spec
     expect(AgentCommunicationLog::query()->where('message_type', 'company_loop.handoff')->count())->toBe(3)
         ->and(AgentCommunicationLog::query()->where('message_type', 'company_loop.result')->count())->toBe(3)
         ->and(AuditEvent::query()->where('event_name', 'artifact.stored')->count())->toBe(7)
-        ->and($provider->requests)->toHaveCount(3);
+        ->and($provider->requests)->toHaveCount(3)
+        ->and(collect($provider->requests)->pluck('prompt.version')->unique()->values()->all())->toBe([
+            'specialist-prompt-v1',
+        ]);
 });

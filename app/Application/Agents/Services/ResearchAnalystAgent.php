@@ -16,8 +16,7 @@ final class ResearchAnalystAgent
         private readonly TaskContextRetrievalService $retrieval,
         private readonly PromptBuilder $promptBuilder,
         private readonly LlmProvider $provider,
-    ) {
-    }
+    ) {}
 
     public function run(Task $task, Agent $agent): array
     {
@@ -49,6 +48,7 @@ final class ResearchAnalystAgent
                 'task_id' => $task->id,
                 'agent_id' => $agent->id,
                 'agent_role' => $agent->role,
+                'prompt' => $prompt->trace->toArray(),
             ],
         ));
 
@@ -75,6 +75,7 @@ final class ResearchAnalystAgent
                 'output_tokens' => $response->outputTokens,
                 'request_id' => $response->requestId,
                 'grounding_trace' => $groundingTrace,
+                'prompt' => $prompt->trace->toArray(),
             ],
             'prompt_messages' => array_map(
                 static fn ($message): array => $message->toArray(),

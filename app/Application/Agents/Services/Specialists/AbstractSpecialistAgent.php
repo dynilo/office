@@ -16,8 +16,7 @@ abstract class AbstractSpecialistAgent
     public function __construct(
         private readonly PromptBuilder $promptBuilder,
         private readonly LlmProvider $provider,
-    ) {
-    }
+    ) {}
 
     abstract public function role(): string;
 
@@ -63,6 +62,7 @@ abstract class AbstractSpecialistAgent
                 'agent_id' => $agent->id,
                 'agent_role' => $this->role(),
                 'specialist_output_type' => $this->outputType(),
+                'prompt' => $prompt->trace->toArray(),
             ],
         ));
 
@@ -77,6 +77,7 @@ abstract class AbstractSpecialistAgent
                 'input_tokens' => $response->inputTokens,
                 'output_tokens' => $response->outputTokens,
                 'request_id' => $response->requestId,
+                'prompt' => $prompt->trace->toArray(),
             ],
             'prompt_messages' => array_map(
                 static fn ($message): array => $message->toArray(),
