@@ -19,4 +19,23 @@ enum TaskStatus: string
             self::Draft, self::Pending, self::Queued, self::InProgress => false,
         };
     }
+
+    /**
+     * @return array<int, self>
+     */
+    public function allowedTransitions(): array
+    {
+        return match ($this) {
+            self::Draft => [self::Queued, self::Cancelled],
+            self::Pending => [self::Queued, self::Cancelled],
+            self::Queued => [self::InProgress, self::Cancelled],
+            self::InProgress => [self::Completed, self::Failed, self::Cancelled],
+            self::Completed, self::Failed, self::Cancelled => [],
+        };
+    }
+
+    public function canTransitionTo(self $target): bool
+    {
+        return in_array($target, $this->allowedTransitions(), true);
+    }
 }

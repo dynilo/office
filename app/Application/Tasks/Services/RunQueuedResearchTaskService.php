@@ -17,6 +17,7 @@ final class RunQueuedResearchTaskService
         private readonly AssignTaskService $assignment,
         private readonly ExecutionLifecycleService $executions,
         private readonly ResearchAnalystAgent $researchAgent,
+        private readonly TaskLifecycleService $taskLifecycle,
     ) {
     }
 
@@ -45,8 +46,7 @@ final class RunQueuedResearchTaskService
             idempotencyKey: 'task-'.$task->id.'-attempt-1',
         );
 
-        $task->status = TaskStatus::InProgress;
-        $this->tasks->save($task);
+        $task = $this->taskLifecycle->transition($task, TaskStatus::InProgress);
 
         dispatch_sync(new \App\Application\Executions\Jobs\StartExecutionJob($execution->id));
 
@@ -61,8 +61,7 @@ final class RunQueuedResearchTaskService
                 ],
             );
 
-            $task->status = TaskStatus::Completed;
-            return $this->tasks->save($task);
+            return $this->taskLifecycle->transition($task->fresh(['executions']), TaskStatus::Completed);
         } catch (LlmProviderException $exception) {
             $this->executions->markFailed($execution->id, $exception->getMessage(), [
                 'provider' => $exception->provider,
@@ -70,8 +69,7 @@ final class RunQueuedResearchTaskService
                 'error_code' => $exception->errorCode,
             ]);
 
-            $task->status = TaskStatus::Failed;
-            $this->tasks->save($task);
+            $this->taskLifecycle->transition($task->fresh(['executions']), TaskStatus::Failed);
 
             throw $exception;
         }
