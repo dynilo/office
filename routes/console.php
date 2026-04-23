@@ -4,6 +4,7 @@ use App\Application\Providers\Exceptions\LlmProviderException;
 use App\Application\Tasks\Services\RunQueuedResearchTaskService;
 use App\Support\Auth\AuthAccessValidation;
 use App\Support\Backup\BackupBaselineService;
+use App\Support\Context\RetrievalQualityValidation;
 use App\Support\Database\PgvectorRuntimeValidation;
 use App\Support\Database\PostgresqlRuntimeValidation;
 use App\Support\Memory\EmbeddingProviderRuntimeValidation;
@@ -103,3 +104,11 @@ Artisan::command('embedding-provider:validate-runtime', function (EmbeddingProvi
 
     return $report['ready'] === true ? Command::SUCCESS : Command::FAILURE;
 })->purpose('Validate real embedding provider runtime readiness and normalized output expectations.');
+
+Artisan::command('retrieval:validate-quality', function (RetrievalQualityValidation $validation) {
+    $report = $validation->report();
+
+    $this->line(json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+    return $report['ready'] === true ? Command::SUCCESS : Command::FAILURE;
+})->purpose('Validate retrieval filtering thresholds, deterministic ordering, and safe empty-result behavior.');
