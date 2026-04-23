@@ -25,5 +25,6 @@ Route::prefix('admin')->middleware([
     Route::get('/tasks', [AdminShellController::class, 'tasks'])->name('admin.tasks');
     Route::get('/executions', [AdminShellController::class, 'executions'])->name('admin.executions');
     Route::get('/documents', [AdminShellController::class, 'documents'])->name('admin.documents');
+    Route::get('/conversations', [AdminShellController::class, 'conversations'])->name('admin.conversations');
     Route::get('/audit', [AdminShellController::class, 'audit'])->name('admin.audit');
 });

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Application\Communications\Services\AgentCommunicationQueryService;
 use App\Http\Controllers\Controller;
 use App\Infrastructure\Persistence\Eloquent\Models\Agent;
 use App\Infrastructure\Persistence\Eloquent\Models\AgentCommunicationLog;
@@ -14,6 +15,7 @@ use App\Infrastructure\Persistence\Eloquent\Models\KnowledgeItem;
 use App\Infrastructure\Persistence\Eloquent\Models\ProviderUsageRecord;
 use App\Infrastructure\Persistence\Eloquent\Models\Task;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 
 class AdminShellController extends Controller
@@ -189,6 +191,62 @@ class AdminShellController extends Controller
         );
     }
 
+    public function conversations(Request $request, AgentCommunicationQueryService $communications): View
+    {
+        $filters = [
+            'task_id' => $request->query('task_id'),
+            'agent_id' => $request->query('agent_id'),
+            'first_agent_id' => $request->query('first_agent_id'),
+            'second_agent_id' => $request->query('second_agent_id'),
+        ];
+        $messages = $this->conversationMessages($filters, $communications)
+            ->map(fn (AgentCommunicationLog $message): array => $this->serializeCommunication($message))
+            ->values()
+            ->all();
+        $agents = Agent::query()
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Agent $agent): array => [
+                'id' => $agent->id,
+                'name' => $agent->name,
+                'role' => $agent->role,
+            ])
+            ->values()
+            ->all();
+        $tasks = Task::query()
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(100)
+            ->get()
+            ->map(fn (Task $task): array => [
+                'id' => $task->id,
+                'title' => $task->title,
+                'state' => $task->status?->value,
+            ])
+            ->values()
+            ->all();
+
+        return $this->page(
+            page: 'conversations',
+            title: 'Conversations',
+            view: 'admin.conversations',
+            bootstrap: [
+                'initialMessages' => $messages,
+                'conversationFilters' => array_filter($filters),
+                'conversationOptions' => [
+                    'agents' => $agents,
+                    'tasks' => $tasks,
+                ],
+            ],
+            data: [
+                'messages' => $messages,
+                'agents' => $agents,
+                'tasks' => $tasks,
+                'filters' => $filters,
+            ],
+        );
+    }
+
     public function audit(): View
     {
         return $this->page('audit', 'Audit');
@@ -243,8 +301,40 @@ class AdminShellController extends Controller
             ['key' => 'tasks', 'label' => 'Tasks', 'href' => route('admin.tasks')],
             ['key' => 'executions', 'label' => 'Executions', 'href' => route('admin.executions')],
             ['key' => 'documents', 'label' => 'Documents', 'href' => route('admin.documents')],
+            ['key' => 'conversations', 'label' => 'Conversations', 'href' => route('admin.conversations')],
             ['key' => 'audit', 'label' => 'Audit', 'href' => route('admin.audit')],
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return Collection<int, AgentCommunicationLog>
+     */
+    private function conversationMessages(array $filters, AgentCommunicationQueryService $communications): Collection
+    {
+        $taskId = is_string($filters['task_id'] ?? null) ? $filters['task_id'] : null;
+        $agentId = is_string($filters['agent_id'] ?? null) ? $filters['agent_id'] : null;
+        $firstAgentId = is_string($filters['first_agent_id'] ?? null) ? $filters['first_agent_id'] : null;
+        $secondAgentId = is_string($filters['second_agent_id'] ?? null) ? $filters['second_agent_id'] : null;
+
+        if ($taskId !== null && $taskId !== '') {
+            return $communications->forTask($taskId);
+        }
+
+        if ($firstAgentId !== null && $firstAgentId !== '' && $secondAgentId !== null && $secondAgentId !== '') {
+            return $communications->betweenAgents($firstAgentId, $secondAgentId);
+        }
+
+        if ($agentId !== null && $agentId !== '') {
+            return $communications->forAgent($agentId);
+        }
+
+        return AgentCommunicationLog::query()
+            ->with(['sender', 'recipient', 'task'])
+            ->orderByDesc('sent_at')
+            ->orderByDesc('id')
+            ->limit(100)
+            ->get();
     }
 
     /**
@@ -458,6 +548,7 @@ class AdminShellController extends Controller
             'recipient_agent_id' => $message->recipient_agent_id,
             'recipient_name' => $message->recipient?->name,
             'task_id' => $message->task_id,
+            'task_title' => $message->task?->title,
             'message_type' => $message->message_type,
             'subject' => $message->subject,
             'body' => $message->body,
