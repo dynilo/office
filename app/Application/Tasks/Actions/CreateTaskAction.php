@@ -12,6 +12,8 @@ final class CreateTaskAction
         $status = TaskStatus::from($attributes['initial_state']);
 
         return Task::query()->create([
+            'parent_task_id' => $attributes['parent_task_id'] ?? null,
+            'decomposition_index' => $attributes['decomposition_index'] ?? null,
             'title' => $attributes['title'],
             'summary' => $attributes['summary'] ?? null,
             'description' => $attributes['description'] ?? null,

@@ -24,6 +24,8 @@ class Task extends Model
 
     protected $fillable = [
         'agent_id',
+        'parent_task_id',
+        'decomposition_index',
         'title',
         'summary',
         'description',
@@ -44,6 +46,7 @@ class Task extends Model
         return [
             'status' => TaskStatus::class,
             'priority' => TaskPriority::class,
+            'decomposition_index' => 'integer',
             'payload' => 'array',
             'context' => 'array',
             'submitted_at' => 'immutable_datetime',
@@ -58,6 +61,16 @@ class Task extends Model
     public function agent(): BelongsTo
     {
         return $this->belongsTo(Agent::class);
+    }
+
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_task_id');
+    }
+
+    public function children(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_task_id')->orderBy('decomposition_index');
     }
 
     public function assignmentDecisions(): HasMany
