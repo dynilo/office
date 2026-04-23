@@ -21,6 +21,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Production Database Guardrails
+    |--------------------------------------------------------------------------
+    |
+    | The runtime is PostgreSQL-first in production. Tests and local
+    | development may use SQLite or other drivers, but production boots should
+    | fail fast when the default connection is not PostgreSQL-safe.
+    |
+    */
+
+    'production' => [
+        'enforce_pgsql' => env('DB_ENFORCE_POSTGRESQL', true),
+        'require_ssl' => env('DB_REQUIRE_SSL_IN_PRODUCTION', true),
+        'allowed_sslmodes' => ['require', 'verify-ca', 'verify-full'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Database Connections
     |--------------------------------------------------------------------------
     |
@@ -95,7 +112,7 @@ return [
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
-            'search_path' => 'public',
+            'search_path' => env('DB_SEARCH_PATH', 'public'),
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
