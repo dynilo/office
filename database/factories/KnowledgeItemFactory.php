@@ -22,10 +22,13 @@ class KnowledgeItemFactory extends Factory
             'title' => fake()->sentence(4),
             'content' => $content,
             'content_hash' => hash('sha256', $content),
+            'embedding_model' => null,
+            'embedding_dimensions' => null,
             'metadata' => [
                 'chunk' => fake()->numberBetween(1, 20),
             ],
             'indexed_at' => now()->subHour(),
+            'embedding_generated_at' => null,
         ];
     }
 }

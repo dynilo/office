@@ -3,11 +3,13 @@
 namespace App\Providers;
 
 use App\Application\Documents\Services\DocumentParserRegistry;
+use App\Application\Memory\Contracts\KnowledgeSimilaritySearch;
 use App\Domain\Agents\Contracts\AgentRepository;
 use App\Domain\Executions\Contracts\ExecutionRepository;
 use App\Domain\Tasks\Contracts\TaskRepository;
 use App\Application\Providers\Contracts\LlmProvider;
 use App\Infrastructure\Documents\Parsers\PlainTextDocumentParser;
+use App\Infrastructure\Persistence\Eloquent\Repositories\PgvectorKnowledgeSimilaritySearch;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentAgentRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentExecutionRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentTaskRepository;
@@ -24,6 +26,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(AgentRepository::class, EloquentAgentRepository::class);
         $this->app->bind(ExecutionRepository::class, EloquentExecutionRepository::class);
         $this->app->bind(TaskRepository::class, EloquentTaskRepository::class);
+        $this->app->bind(KnowledgeSimilaritySearch::class, PgvectorKnowledgeSimilaritySearch::class);
         $this->app->singleton(DocumentParserRegistry::class, function ($app): DocumentParserRegistry {
             return new DocumentParserRegistry([
                 $app->make(PlainTextDocumentParser::class),

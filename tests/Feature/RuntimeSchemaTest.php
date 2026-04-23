@@ -67,6 +67,14 @@ it('creates the expected runtime tables and columns', function (): void {
             'failure_classification',
             'next_retry_at',
         ]))->toBeTrue()
+        ->and(Schema::hasColumns('knowledge_items', [
+            'id',
+            'document_id',
+            'content_hash',
+            'embedding_model',
+            'embedding_dimensions',
+            'embedding_generated_at',
+        ]))->toBeTrue()
         ->and(Schema::hasColumns('artifacts', [
             'id',
             'task_id',
@@ -146,7 +154,8 @@ it('factories produce valid persisted records', function (): void {
         ->and($artifact->execution_id)->toBe($execution->id)
         ->and($artifact->task_id)->toBe($task->id)
         ->and($document->raw_text)->not->toBeNull()
-        ->and($knowledgeItem->document_id)->toBe($document->id);
+        ->and($knowledgeItem->document_id)->toBe($document->id)
+        ->and($knowledgeItem->embedding_model)->toBeNull();
 });
 
 it('exposes coherent model relations', function (): void {

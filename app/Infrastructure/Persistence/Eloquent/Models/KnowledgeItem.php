@@ -23,8 +23,11 @@ class KnowledgeItem extends Model
         'title',
         'content',
         'content_hash',
+        'embedding_model',
+        'embedding_dimensions',
         'metadata',
         'indexed_at',
+        'embedding_generated_at',
     ];
 
     protected function casts(): array
@@ -32,6 +35,8 @@ class KnowledgeItem extends Model
         return [
             'metadata' => 'array',
             'indexed_at' => 'immutable_datetime',
+            'embedding_dimensions' => 'integer',
+            'embedding_generated_at' => 'immutable_datetime',
             'created_at' => 'immutable_datetime',
             'updated_at' => 'immutable_datetime',
         ];
