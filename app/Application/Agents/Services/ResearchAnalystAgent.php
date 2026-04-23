@@ -2,6 +2,7 @@
 
 namespace App\Application\Agents\Services;
 
+use App\Application\Context\Services\TaskContextRetrievalService;
 use App\Application\Prompts\Data\PromptBuildInputData;
 use App\Application\Prompts\Services\PromptBuilder;
 use App\Application\Providers\Contracts\LlmProvider;
@@ -12,6 +13,7 @@ use App\Infrastructure\Persistence\Eloquent\Models\Task;
 final class ResearchAnalystAgent
 {
     public function __construct(
+        private readonly TaskContextRetrievalService $retrieval,
         private readonly PromptBuilder $promptBuilder,
         private readonly LlmProvider $provider,
     ) {
@@ -19,6 +21,7 @@ final class ResearchAnalystAgent
 
     public function run(Task $task, Agent $agent): array
     {
+        $retrievedContext = $this->retrieval->retrieve($task);
         $prompt = $this->promptBuilder->build(new PromptBuildInputData(
             agentName: $agent->name,
             agentRole: $agent->role ?? 'research',
@@ -28,7 +31,13 @@ final class ResearchAnalystAgent
             taskDescription: $task->description,
             taskPayload: $task->payload ?? [],
             memoryBlocks: $this->memoryBlocks($agent),
-            contextBlocks: $this->contextBlocks($task),
+            contextBlocks: [
+                ...$this->contextBlocks($task),
+                ...array_map(
+                    static fn ($block): string => $block->formattedBlock,
+                    $retrievedContext,
+                ),
+            ],
         ));
 
         $response = $this->provider->generate(new LlmRequestData(
@@ -43,8 +52,19 @@ final class ResearchAnalystAgent
             ],
         ));
 
+        $groundingTrace = array_map(
+            static fn ($block): array => [
+                'knowledge_item_id' => $block->knowledgeItem->id,
+                'document_id' => $block->knowledgeItem->document_id,
+                'title' => $block->knowledgeItem->title,
+                'distance' => $block->distance,
+                'metadata' => $block->knowledgeItem->metadata ?? [],
+            ],
+            $retrievedContext,
+        );
+
         return [
-            'structured_result' => $this->normalizeStructuredResult($response->content),
+            'structured_result' => $this->normalizeStructuredResult($response->content, $groundingTrace),
             'raw_response' => [
                 'provider' => $response->provider,
                 'response_id' => $response->responseId,
@@ -54,6 +74,7 @@ final class ResearchAnalystAgent
                 'input_tokens' => $response->inputTokens,
                 'output_tokens' => $response->outputTokens,
                 'request_id' => $response->requestId,
+                'grounding_trace' => $groundingTrace,
             ],
             'prompt_messages' => array_map(
                 static fn ($message): array => $message->toArray(),
@@ -97,17 +118,29 @@ final class ResearchAnalystAgent
         return is_numeric($value) ? (float) $value : null;
     }
 
-    private function normalizeStructuredResult(string $content): array
+    /**
+     * @param  array<int, array<string, mixed>>  $groundingTrace
+     */
+    private function normalizeStructuredResult(string $content, array $groundingTrace): array
     {
         $decoded = json_decode($content, true);
 
-        if (is_array($decoded)) {
-            return $decoded;
-        }
+        $result = is_array($decoded)
+            ? $decoded
+            : [
+                'summary' => trim($content),
+                'findings' => [],
+            ];
 
-        return [
-            'summary' => trim($content),
-            'findings' => [],
+        $result['grounding'] = [
+            'retrieved_context_count' => count($groundingTrace),
+            'knowledge_item_ids' => array_values(array_filter(array_map(
+                static fn (array $entry): ?string => $entry['knowledge_item_id'] ?? null,
+                $groundingTrace,
+            ))),
+            'trace' => $groundingTrace,
         ];
+
+        return $result;
     }
 }
