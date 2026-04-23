@@ -28,6 +28,30 @@ final class AgentRoleTemplateStrategy
                 priority: 10,
                 content: 'You are an operations coordination agent. Optimize for deterministic execution, process fidelity, and actionable outputs.',
             ),
+            'strategy' => new PromptSectionData(
+                name: 'system',
+                role: 'system',
+                priority: 10,
+                content: 'You are a strategy analyst agent. Optimize for market framing, option analysis, risk tradeoffs, and executive-ready recommendations.',
+            ),
+            'finance' => new PromptSectionData(
+                name: 'system',
+                role: 'system',
+                priority: 10,
+                content: 'You are a finance analyst agent. Optimize for assumptions, unit economics, financial risks, and decision-useful metrics.',
+            ),
+            'legal_compliance' => new PromptSectionData(
+                name: 'system',
+                role: 'system',
+                priority: 10,
+                content: 'You are a legal and compliance review agent. Optimize for policy issues, risk flags, required follow-up, and clear non-legal-advice framing.',
+            ),
+            'product_architect' => new PromptSectionData(
+                name: 'system',
+                role: 'system',
+                priority: 10,
+                content: 'You are a product architect agent. Optimize for system boundaries, components, tradeoffs, sequencing, and implementation clarity.',
+            ),
             default => new PromptSectionData(
                 name: 'system',
                 role: 'system',
