@@ -3,6 +3,7 @@
 use App\Application\Providers\Exceptions\LlmProviderException;
 use App\Application\Tasks\Services\RunQueuedResearchTaskService;
 use App\Support\Backup\BackupBaselineService;
+use App\Support\Database\PgvectorRuntimeValidation;
 use App\Support\Database\PostgresqlRuntimeValidation;
 use App\Support\Observability\ObservabilityService;
 use App\Support\Redis\RedisRuntimeValidation;
@@ -67,3 +68,11 @@ Artisan::command('redis:validate-runtime', function (RedisRuntimeValidation $val
 
     return $report['ready'] === true ? Command::SUCCESS : Command::FAILURE;
 })->purpose('Validate live Redis runtime connectivity for queue, cache, and broadcast paths.');
+
+Artisan::command('pgvector:validate-runtime', function (PgvectorRuntimeValidation $validation) {
+    $report = $validation->report();
+
+    $this->line(json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+    return $report['ready'] === true ? Command::SUCCESS : Command::FAILURE;
+})->purpose('Validate live pgvector runtime readiness for memory storage and similarity search.');

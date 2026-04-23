@@ -18,3 +18,22 @@ Configuration:
 - `PGVECTOR_INDEX_NAME=knowledge_items_embedding_hnsw_idx`
 
 `PgvectorCapabilitiesService::readinessReport()` provides a safe diagnostic report without requiring the runtime to fail when pgvector is unavailable. Set `PGVECTOR_REQUIRE_IN_PRODUCTION=true` only when production must fail readiness if pgvector storage/search is unavailable.
+
+For live runtime validation against a PostgreSQL connection that should have pgvector available, run:
+
+```bash
+php artisan pgvector:validate-runtime
+```
+
+This runtime validation probes:
+- installed pgvector extension visibility
+- `knowledge_items.embedding` vector column support
+- configured vector dimensions alignment
+- live similarity operator execution for the configured distance mode
+
+Fallback-safe behavior when pgvector is unavailable:
+- embedding metadata is still persisted
+- vector storage is treated as unavailable instead of crashing migrations or writes
+- similarity search degrades to an empty result set
+
+The command fails safely with structured JSON output and redacted connection errors when PostgreSQL or pgvector runtime support is unavailable.
