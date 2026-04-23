@@ -4,6 +4,7 @@ use App\Application\Providers\Exceptions\LlmProviderException;
 use App\Application\Tasks\Services\RunQueuedResearchTaskService;
 use App\Support\Auth\AuthAccessValidation;
 use App\Support\Backup\BackupBaselineService;
+use App\Support\CompanyLoop\CompanyLoopProductionAcceptance;
 use App\Support\Context\RetrievalQualityValidation;
 use App\Support\Database\PgvectorRuntimeValidation;
 use App\Support\Database\PostgresqlRuntimeValidation;
@@ -112,3 +113,11 @@ Artisan::command('retrieval:validate-quality', function (RetrievalQualityValidat
 
     return $report['ready'] === true ? Command::SUCCESS : Command::FAILURE;
 })->purpose('Validate retrieval filtering thresholds, deterministic ordering, and safe empty-result behavior.');
+
+Artisan::command('company-loop:validate-production', function (CompanyLoopProductionAcceptance $validation) {
+    $report = $validation->report();
+
+    $this->line(json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+    return $report['ready'] === true ? Command::SUCCESS : Command::FAILURE;
+})->purpose('Validate end-to-end company loop production readiness with a rollback-safe probe.');
