@@ -88,6 +88,11 @@ class Task extends Model
         return $this->hasMany(Artifact::class);
     }
 
+    public function communicationLogs(): HasMany
+    {
+        return $this->hasMany(AgentCommunicationLog::class);
+    }
+
     public function dependencies(): BelongsToMany
     {
         return $this->belongsToMany(

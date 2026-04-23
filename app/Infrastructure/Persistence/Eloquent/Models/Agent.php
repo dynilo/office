@@ -63,6 +63,16 @@ class Agent extends Model
         return $this->hasMany(Execution::class);
     }
 
+    public function sentCommunications(): HasMany
+    {
+        return $this->hasMany(AgentCommunicationLog::class, 'sender_agent_id');
+    }
+
+    public function receivedCommunications(): HasMany
+    {
+        return $this->hasMany(AgentCommunicationLog::class, 'recipient_agent_id');
+    }
+
     protected static function newFactory(): AgentFactory
     {
         return AgentFactory::new();
