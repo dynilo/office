@@ -6,6 +6,7 @@ use App\Domain\Tasks\Enums\TaskPriority;
 use App\Domain\Tasks\Enums\TaskStatus;
 use App\Infrastructure\Persistence\Eloquent\Models\Agent;
 use App\Infrastructure\Persistence\Eloquent\Models\AgentProfile;
+use App\Infrastructure\Persistence\Eloquent\Models\AuditEvent;
 use App\Infrastructure\Persistence\Eloquent\Models\Artifact;
 use App\Infrastructure\Persistence\Eloquent\Models\Document;
 use App\Infrastructure\Persistence\Eloquent\Models\Execution;
@@ -23,7 +24,8 @@ it('loads the runtime schema through migrations', function (): void {
     expect(Schema::hasTable('agents'))->toBeTrue()
         ->and(Schema::hasTable('knowledge_items'))->toBeTrue()
         ->and(Schema::hasTable('task_assignment_decisions'))->toBeTrue()
-        ->and(Schema::hasTable('artifacts'))->toBeTrue();
+        ->and(Schema::hasTable('artifacts'))->toBeTrue()
+        ->and(Schema::hasTable('audit_events'))->toBeTrue();
 });
 
 it('creates the expected runtime tables and columns', function (): void {
@@ -66,6 +68,17 @@ it('creates the expected runtime tables and columns', function (): void {
             'provider_response',
             'failure_classification',
             'next_retry_at',
+        ]))->toBeTrue()
+        ->and(Schema::hasColumns('audit_events', [
+            'id',
+            'event_name',
+            'auditable_type',
+            'auditable_id',
+            'actor_type',
+            'actor_id',
+            'source',
+            'metadata',
+            'occurred_at',
         ]))->toBeTrue()
         ->and(Schema::hasColumns('knowledge_items', [
             'id',
@@ -133,6 +146,16 @@ it('factories produce valid persisted records', function (): void {
     ]);
     $log = ExecutionLog::factory()->for($execution)->create();
     $artifact = Artifact::factory()->for($task)->for($execution)->create();
+    $auditEvent = AuditEvent::query()->create([
+        'event_name' => 'test.event',
+        'auditable_type' => 'task',
+        'auditable_id' => $task->id,
+        'actor_type' => 'agent',
+        'actor_id' => $agent->id,
+        'source' => 'runtime_schema_test',
+        'metadata' => ['ok' => true],
+        'occurred_at' => now(),
+    ]);
     $document = Document::factory()->create();
     $knowledgeItem = KnowledgeItem::factory()->for($document)->create();
 
@@ -153,6 +176,7 @@ it('factories produce valid persisted records', function (): void {
         ->and($log->execution_id)->toBe($execution->id)
         ->and($artifact->execution_id)->toBe($execution->id)
         ->and($artifact->task_id)->toBe($task->id)
+        ->and($auditEvent->auditable_id)->toBe($task->id)
         ->and($document->raw_text)->not->toBeNull()
         ->and($knowledgeItem->document_id)->toBe($document->id)
         ->and($knowledgeItem->embedding_model)->toBeNull();

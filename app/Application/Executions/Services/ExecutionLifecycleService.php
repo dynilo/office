@@ -2,6 +2,10 @@
 
 namespace App\Application\Executions\Services;
 
+use App\Application\Audit\Data\AuditActorData;
+use App\Application\Audit\Data\AuditEventData;
+use App\Application\Audit\Data\AuditSubjectData;
+use App\Application\Audit\Services\AuditEventWriter;
 use App\Application\Executions\Guards\ExecutionTransitionGuard;
 use App\Domain\Executions\Contracts\ExecutionRepository;
 use App\Domain\Executions\Enums\ExecutionStatus;
@@ -16,6 +20,7 @@ final class ExecutionLifecycleService
         private readonly ExecutionRepository $executions,
         private readonly ExecutionTransitionGuard $guard,
         private readonly ExecutionLogWriter $logs,
+        private readonly AuditEventWriter $audit,
     ) {
     }
 
@@ -61,6 +66,17 @@ final class ExecutionLifecycleService
         $this->logs->write($execution, 'info', 'execution.pending_created', [
             'idempotency_key' => $idempotencyKey,
         ]);
+        $this->audit->write(new AuditEventData(
+            eventName: 'execution.created',
+            subject: new AuditSubjectData('execution', $execution->id),
+            actor: new AuditActorData('agent', $execution->agent_id),
+            source: 'execution_lifecycle',
+            metadata: [
+                'task_id' => $execution->task_id,
+                'status' => $execution->status->value,
+                'idempotency_key' => $idempotencyKey,
+            ],
+        ));
 
         return $execution->refresh()->load('logs');
     }
@@ -75,6 +91,16 @@ final class ExecutionLifecycleService
         $execution = $this->executions->save($execution);
 
         $this->logs->write($execution, 'info', 'execution.running', []);
+        $this->audit->write(new AuditEventData(
+            eventName: 'execution.status_changed',
+            subject: new AuditSubjectData('execution', $execution->id),
+            actor: new AuditActorData('agent', $execution->agent_id),
+            source: 'execution_lifecycle',
+            metadata: [
+                'from' => ExecutionStatus::Pending->value,
+                'to' => ExecutionStatus::Running->value,
+            ],
+        ));
 
         return $execution->refresh()->load('logs');
     }
@@ -98,6 +124,17 @@ final class ExecutionLifecycleService
         $this->logs->write($execution, 'info', 'execution.succeeded', [
             'output_keys' => array_keys($outputPayload),
         ]);
+        $this->audit->write(new AuditEventData(
+            eventName: 'execution.status_changed',
+            subject: new AuditSubjectData('execution', $execution->id),
+            actor: new AuditActorData('agent', $execution->agent_id),
+            source: 'execution_lifecycle',
+            metadata: [
+                'from' => ExecutionStatus::Running->value,
+                'to' => ExecutionStatus::Succeeded->value,
+                'output_keys' => array_keys($outputPayload),
+            ],
+        ));
 
         return $execution->refresh()->load('logs');
     }
@@ -124,6 +161,18 @@ final class ExecutionLifecycleService
             'error' => $errorMessage,
             ...$context,
         ]);
+        $this->audit->write(new AuditEventData(
+            eventName: 'execution.status_changed',
+            subject: new AuditSubjectData('execution', $execution->id),
+            actor: new AuditActorData('agent', $execution->agent_id),
+            source: 'execution_lifecycle',
+            metadata: [
+                'from' => ExecutionStatus::Running->value,
+                'to' => ExecutionStatus::Failed->value,
+                'error' => $errorMessage,
+                'failure_classification' => $failureClassification,
+            ],
+        ));
 
         return $execution->refresh()->load('logs');
     }

@@ -2,6 +2,10 @@
 
 namespace App\Application\Tasks\Services;
 
+use App\Application\Audit\Data\AuditActorData;
+use App\Application\Audit\Data\AuditEventData;
+use App\Application\Audit\Data\AuditSubjectData;
+use App\Application\Audit\Services\AuditEventWriter;
 use App\Application\Tasks\Data\TaskAssignmentDecisionData;
 use App\Domain\Agents\Contracts\AgentRepository;
 use App\Domain\Tasks\Contracts\TaskRepository;
@@ -14,6 +18,7 @@ final class AssignTaskService
     public function __construct(
         private readonly TaskRepository $tasks,
         private readonly AgentRepository $agents,
+        private readonly AuditEventWriter $audit,
     ) {
     }
 
@@ -112,6 +117,19 @@ final class AssignTaskService
             'matched_by' => $decision->matchedBy,
             'context' => $decision->toPersistenceContext(),
         ]);
+
+        $this->audit->write(new AuditEventData(
+            eventName: 'task.assignment_recorded',
+            subject: new AuditSubjectData('task', $decision->taskId),
+            actor: $decision->agentId !== null ? new AuditActorData('agent', $decision->agentId) : null,
+            source: 'assignment_service',
+            metadata: [
+                'outcome' => $decision->outcome,
+                'reason_code' => $decision->reasonCode,
+                'matched_by' => $decision->matchedBy,
+                'context' => $decision->toPersistenceContext(),
+            ],
+        ));
 
         return $decision;
     }
