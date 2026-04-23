@@ -1,11 +1,16 @@
 <?php
 
 use App\Infrastructure\Persistence\Eloquent\Models\Document;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
+
+beforeEach(function (): void {
+    $this->actingAs(User::factory()->create());
+});
 
 it('ingests a document and persists extracted raw text plus metadata', function (): void {
     Storage::fake('local');

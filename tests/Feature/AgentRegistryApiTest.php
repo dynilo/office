@@ -3,9 +3,14 @@
 use App\Domain\Agents\Enums\AgentStatus;
 use App\Infrastructure\Persistence\Eloquent\Models\Agent;
 use App\Infrastructure\Persistence\Eloquent\Models\AgentProfile;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
+
+beforeEach(function (): void {
+    $this->actingAs(User::factory()->create());
+});
 
 it('creates an agent through the registry api', function (): void {
     $response = $this->postJson('/api/agents', [

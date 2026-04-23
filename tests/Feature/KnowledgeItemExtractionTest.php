@@ -2,9 +2,14 @@
 
 use App\Infrastructure\Persistence\Eloquent\Models\Document;
 use App\Infrastructure\Persistence\Eloquent\Models\KnowledgeItem;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
+
+beforeEach(function (): void {
+    $this->actingAs(User::factory()->create());
+});
 
 it('extracts deterministic knowledge items from an ingested document', function (): void {
     config()->set('knowledge.chunking.max_characters', 80);
