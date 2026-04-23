@@ -2,6 +2,7 @@
 
 return [
     'default' => env('INTEGRATIONS_DEFAULT', 'stub_slack'),
+    'allow_stub_fallback_in_production' => env('INTEGRATIONS_ALLOW_STUB_FALLBACK_IN_PRODUCTION', false),
 
     'connectors' => [
         'stub_slack' => [

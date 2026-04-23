@@ -26,6 +26,10 @@ final readonly class ExternalIntegrationGatewayService implements ExternalIntegr
             throw new InvalidStateException("External integration connector [{$name}] is not supported.");
         }
 
+        if (! $connector->descriptor()->enabled) {
+            throw new InvalidStateException("External integration connector [{$name}] is disabled.");
+        }
+
         return $connector;
     }
 

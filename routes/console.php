@@ -8,6 +8,7 @@ use App\Support\CompanyLoop\CompanyLoopProductionAcceptance;
 use App\Support\Context\RetrievalQualityValidation;
 use App\Support\Database\PgvectorRuntimeValidation;
 use App\Support\Database\PostgresqlRuntimeValidation;
+use App\Support\Integrations\ExternalIntegrationReadinessValidation;
 use App\Support\Memory\EmbeddingProviderRuntimeValidation;
 use App\Support\Observability\ObservabilityService;
 use App\Support\Redis\RedisRuntimeValidation;
@@ -130,3 +131,11 @@ Artisan::command('usage-accounting:validate-runtime', function (UsageAccountingH
 
     return $report['ready'] === true ? Command::SUCCESS : Command::FAILURE;
 })->purpose('Validate usage-accounting and provider-cost tracking reliability assumptions.');
+
+Artisan::command('integrations:validate-runtime', function (ExternalIntegrationReadinessValidation $validation) {
+    $report = $validation->report();
+
+    $this->line(json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+    return $report['ready'] === true ? Command::SUCCESS : Command::FAILURE;
+})->purpose('Validate external integration gateway readiness and stub fallback posture.');

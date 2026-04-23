@@ -74,3 +74,15 @@ it('rejects unsupported operations on the stub connector', function (): void {
         'External integration operation [files.upload] is not supported by [stub_slack].',
     );
 });
+
+it('rejects dispatch through a disabled connector', function (): void {
+    config()->set('integrations.connectors.stub_slack.enabled', false);
+
+    expect(fn () => app(ExternalIntegrationGateway::class)->dispatch(new IntegrationRequestData(
+        connector: 'stub_slack',
+        operation: 'channels.list',
+    )))->toThrow(
+        InvalidStateException::class,
+        'External integration connector [stub_slack] is disabled.',
+    );
+});
