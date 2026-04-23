@@ -3,6 +3,7 @@
 namespace App\Application\Executions\Services;
 
 use App\Application\Executions\Data\ExecutionRetryDecisionData;
+use App\Application\Runtime\Events\ExecutionCreated;
 use App\Domain\Executions\Contracts\ExecutionRepository;
 use App\Domain\Executions\Enums\ExecutionStatus;
 use App\Infrastructure\Persistence\Eloquent\Models\Execution;
@@ -71,6 +72,14 @@ final class ExecutionRetryService
             'retry_of_execution_id' => $failed->id,
             'next_retry_at' => $decision->nextRetryAt?->toIso8601String(),
         ]);
+
+        event(new ExecutionCreated(
+            executionId: $retryExecution->id,
+            taskId: $retryExecution->task_id,
+            agentId: $retryExecution->agent_id,
+            status: $retryExecution->status->value,
+            attempt: $retryExecution->attempt,
+        ));
 
         return $decision;
     }

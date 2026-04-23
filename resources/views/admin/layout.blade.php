@@ -213,6 +213,45 @@
 
     <script>
         window.OfficeAdmin = @json($bootstrap);
+        window.OfficeRuntimeEvents = (() => {
+            const realtime = window.OfficeAdmin?.realtime || {};
+            const callbacks = new EventTarget();
+            const runtime = {
+                connected: false,
+                fallback: true,
+                reason: 'Realtime transport is not configured.',
+                on(type, callback) {
+                    callbacks.addEventListener(type, (event) => callback(event.detail));
+                },
+                emit(type, payload) {
+                    const detail = { type, payload };
+                    callbacks.dispatchEvent(new CustomEvent(type, { detail: payload }));
+                    window.dispatchEvent(new CustomEvent('office:runtime-event', { detail }));
+                },
+            };
+
+            if (!realtime.enabled || !window.Echo) {
+                window.dispatchEvent(new CustomEvent('office:realtime-fallback', {
+                    detail: {
+                        channel: realtime.channel || 'runtime',
+                        reason: runtime.reason,
+                    },
+                }));
+
+                return runtime;
+            }
+
+            runtime.connected = true;
+            runtime.fallback = false;
+            runtime.reason = null;
+
+            const channel = window.Echo.channel(realtime.channel || 'runtime');
+            Object.values(realtime.events || {}).forEach((eventName) => {
+                channel.listen(`.${eventName}`, (payload) => runtime.emit(eventName, payload));
+            });
+
+            return runtime;
+        })();
     </script>
     @yield('pageScripts')
 </body>

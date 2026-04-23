@@ -135,6 +135,15 @@ class AdminShellController extends Controller
                     'executions' => route('api.admin.executions'),
                     'auditEvents' => route('api.admin.audit-events'),
                 ],
+                'realtime' => [
+                    'enabled' => config('broadcasting.default') !== 'null',
+                    'channel' => 'runtime',
+                    'events' => [
+                        'taskStatusChanged' => 'task.status.changed',
+                        'executionCreated' => 'execution.created',
+                        'executionStatusChanged' => 'execution.status.changed',
+                    ],
+                ],
                 'navigation' => $this->navigation()->values()->all(),
                 ...$bootstrap,
             ],

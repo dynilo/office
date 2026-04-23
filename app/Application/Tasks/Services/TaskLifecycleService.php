@@ -6,6 +6,7 @@ use App\Application\Audit\Data\AuditActorData;
 use App\Application\Audit\Data\AuditEventData;
 use App\Application\Audit\Data\AuditSubjectData;
 use App\Application\Audit\Services\AuditEventWriter;
+use App\Application\Runtime\Events\TaskStatusChanged;
 use App\Application\Tasks\Guards\TaskTransitionGuard;
 use App\Domain\Tasks\Contracts\TaskRepository;
 use App\Domain\Tasks\Enums\TaskStatus;
@@ -40,6 +41,13 @@ final class TaskLifecycleService
                 'from' => $from->value,
                 'to' => $target->value,
             ],
+        ));
+
+        event(new TaskStatusChanged(
+            taskId: $saved->id,
+            agentId: $saved->agent_id,
+            from: $from->value,
+            to: $target->value,
         ));
 
         return $saved;

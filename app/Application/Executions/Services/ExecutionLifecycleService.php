@@ -7,6 +7,8 @@ use App\Application\Audit\Data\AuditEventData;
 use App\Application\Audit\Data\AuditSubjectData;
 use App\Application\Audit\Services\AuditEventWriter;
 use App\Application\Executions\Guards\ExecutionTransitionGuard;
+use App\Application\Runtime\Events\ExecutionCreated;
+use App\Application\Runtime\Events\ExecutionStatusChanged;
 use App\Domain\Executions\Contracts\ExecutionRepository;
 use App\Domain\Executions\Enums\ExecutionStatus;
 use App\Infrastructure\Persistence\Eloquent\Models\Execution;
@@ -78,13 +80,22 @@ final class ExecutionLifecycleService
             ],
         ));
 
+        event(new ExecutionCreated(
+            executionId: $execution->id,
+            taskId: $execution->task_id,
+            agentId: $execution->agent_id,
+            status: $execution->status->value,
+            attempt: $execution->attempt,
+        ));
+
         return $execution->refresh()->load('logs');
     }
 
     public function markRunning(string $executionId): Execution
     {
         $execution = $this->getExecution($executionId);
-        $this->guard->assertCanTransition($execution->status, ExecutionStatus::Running);
+        $from = $execution->status;
+        $this->guard->assertCanTransition($from, ExecutionStatus::Running);
 
         $execution->status = ExecutionStatus::Running;
         $execution->started_at = $execution->started_at ?? now();
@@ -102,6 +113,15 @@ final class ExecutionLifecycleService
             ],
         ));
 
+        event(new ExecutionStatusChanged(
+            executionId: $execution->id,
+            taskId: $execution->task_id,
+            agentId: $execution->agent_id,
+            from: $from->value,
+            to: ExecutionStatus::Running->value,
+            attempt: $execution->attempt,
+        ));
+
         return $execution->refresh()->load('logs');
     }
 
@@ -112,7 +132,8 @@ final class ExecutionLifecycleService
     ): Execution
     {
         $execution = $this->getExecution($executionId);
-        $this->guard->assertCanTransition($execution->status, ExecutionStatus::Succeeded);
+        $from = $execution->status;
+        $this->guard->assertCanTransition($from, ExecutionStatus::Succeeded);
 
         $execution->status = ExecutionStatus::Succeeded;
         $execution->output_payload = $outputPayload;
@@ -136,6 +157,15 @@ final class ExecutionLifecycleService
             ],
         ));
 
+        event(new ExecutionStatusChanged(
+            executionId: $execution->id,
+            taskId: $execution->task_id,
+            agentId: $execution->agent_id,
+            from: $from->value,
+            to: ExecutionStatus::Succeeded->value,
+            attempt: $execution->attempt,
+        ));
+
         return $execution->refresh()->load('logs');
     }
 
@@ -148,7 +178,8 @@ final class ExecutionLifecycleService
     ): Execution
     {
         $execution = $this->getExecution($executionId);
-        $this->guard->assertCanTransition($execution->status, ExecutionStatus::Failed);
+        $from = $execution->status;
+        $this->guard->assertCanTransition($from, ExecutionStatus::Failed);
 
         $execution->status = ExecutionStatus::Failed;
         $execution->error_message = $errorMessage;
@@ -172,6 +203,16 @@ final class ExecutionLifecycleService
                 'error' => $errorMessage,
                 'failure_classification' => $failureClassification,
             ],
+        ));
+
+        event(new ExecutionStatusChanged(
+            executionId: $execution->id,
+            taskId: $execution->task_id,
+            agentId: $execution->agent_id,
+            from: $from->value,
+            to: ExecutionStatus::Failed->value,
+            attempt: $execution->attempt,
+            failureClassification: $failureClassification,
         ));
 
         return $execution->refresh()->load('logs');
