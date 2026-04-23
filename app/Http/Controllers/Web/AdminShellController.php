@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Infrastructure\Persistence\Eloquent\Models\Agent;
+use App\Infrastructure\Persistence\Eloquent\Models\Task;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 
@@ -47,7 +48,32 @@ class AdminShellController extends Controller
 
     public function tasks(): View
     {
-        return $this->page('tasks', 'Tasks');
+        $tasks = Task::query()
+            ->with('agent')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(100)
+            ->get()
+            ->map(fn (Task $task): array => $this->serializeTask($task))
+            ->values()
+            ->all();
+
+        return $this->page(
+            page: 'tasks',
+            title: 'Tasks',
+            view: 'admin.tasks',
+            bootstrap: [
+                'initialTasks' => $tasks,
+                'taskQueue' => [
+                    'list' => route('api.admin.tasks'),
+                    'create' => url('/api/tasks'),
+                    'show' => url('/api/tasks'),
+                ],
+            ],
+            data: [
+                'tasks' => $tasks,
+            ],
+        );
     }
 
     public function executions(): View
@@ -122,6 +148,30 @@ class AdminShellController extends Controller
             'profile_id' => $agent->profile?->id,
             'created_at' => $agent->created_at?->toIso8601String(),
             'updated_at' => $agent->updated_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializeTask(Task $task): array
+    {
+        return [
+            'id' => $task->id,
+            'agent_id' => $task->agent_id,
+            'agent_name' => $task->agent?->name,
+            'title' => $task->title,
+            'summary' => $task->summary,
+            'description' => $task->description,
+            'payload' => $task->payload ?? [],
+            'priority' => $task->priority?->value,
+            'source' => $task->source,
+            'requested_agent_role' => $task->requested_agent_role,
+            'state' => $task->status?->value,
+            'due_at' => $task->due_at?->toIso8601String(),
+            'submitted_at' => $task->submitted_at?->toIso8601String(),
+            'created_at' => $task->created_at?->toIso8601String(),
+            'updated_at' => $task->updated_at?->toIso8601String(),
         ];
     }
 }
